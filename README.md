@@ -206,6 +206,109 @@ New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/mai
 
 ---
 
+
+
+
+
+## Fase 1 — Configuração do backend com UV
+
+O [UV](https://docs.astral.sh/uv/) é um gerenciador de pacotes e ambientes Python. Os comandos abaixo são iguais no PowerShell e no Bash; apenas a forma de definir o arquivo `.python-version` pode variar.
+
+### Passo 1.1 — Inicializar o projeto backend com UV
+
+1) Entre na pasta do backend:
+
+`cd backend` (o comando **cd** muda o diretório atual para `backend`).
+
+2) Inicialize o projeto UV (quando `backend/pyproject.toml` ainda não existir):
+
+`uv init --app --name gestao-financeira-backend`
+
+- **uv init** — cria um novo projeto Python (arquivo `pyproject.toml` e estrutura básica).
+- **--app** — define o projeto como aplicação (em vez de biblioteca), adequado para um backend.
+- **--name gestao-financeira-backend** — nome do projeto usado no `pyproject.toml`.
+
+### Passo 1.2 — Configurar o `pyproject.toml` completo
+
+O arquivo `backend/pyproject.toml` centraliza:
+
+- **Metadados do projeto** (`[project]`): nome, versão, descrição, autores e `requires-python`.
+- **Build system** (`[build-system]`): como o projeto é empacotado (aqui com `hatchling`).
+- **Ferramentas de qualidade** (seções `tool.*`): lint/format, tipos e testes.
+
+Nesta base do projeto, as configurações principais ficam assim:
+
+- **Ruff** (`[tool.ruff]`, `[tool.ruff.lint]`, `[tool.ruff.format]`)
+  - **line-length = 100** — largura de linha usada para lint/format.
+  - **target-version = "py313"** — guia as regras e formatação para Python 3.13.
+  - **select** — conjunto de regras (erros comuns, imports, boas práticas e upgrades de sintaxe).
+  - **isort** — organiza imports considerando `app` como “first party”.
+- **Black** (`[tool.black]`)
+  - **line-length = 100** e **target-version = ["py313"]** — formatação consistente para Python 3.13.
+- **Mypy** (`[tool.mypy]`)
+  - **python_version = "3.13"** — checagem de tipos compatível com Python 3.13.
+  - **packages = ["app"]** — analisa tipagem do pacote `app` (código em `backend/app`).
+  - **strict = true** — um conjunto de verificações mais completas para estudo e evolução do código.
+- **Pytest** (`[tool.pytest.ini_options]`)
+  - **testpaths = ["../tests"]** — como os testes ficam em `tests/` na raiz do repositório (fora de `backend/`), o caminho relativo parte de `backend/`.
+  - **pythonpath = ["."]** — facilita imports do pacote `app` durante os testes.
+  - **asyncio_mode = "auto"** — integra testes assíncronos com `pytest-asyncio`.
+
+Com essas configurações, você consegue rodar as ferramentas via UV, por exemplo:
+
+- **Lint**: `uv run ruff check .`
+- **Format**: `uv run ruff format .`
+- **Black**: `uv run black .`
+- **Tipos**: `uv run mypy`
+- **Testes**: `uv run pytest`
+
+### Passo 1.3 — Sincronizar dependências (`uv sync`)
+
+Depois de editar dependências (ou ao baixar o projeto em uma nova máquina), use `uv sync` para alinhar o ambiente virtual com o que está descrito no projeto.
+
+```bash
+uv sync
+```
+
+- **uv sync** — atualiza o ambiente do projeto para ficar consistente com o lockfile (e com o `pyproject.toml`).
+- **Sincronização exata (padrão)** — mantém o ambiente com apenas as dependências do projeto, ajudando a reproduzir o mesmo conjunto de pacotes.
+- **Criação de ambiente** — quando `backend/.venv` ainda não existir, ele é criado automaticamente.
+- **Atualização do lock** — antes de sincronizar, o UV pode atualizar o lockfile; para manter o lockfile fixo durante a sincronização, use:
+  - **`uv sync --locked`** — verifica que o lockfile está atualizado e sincroniza sem alterá-lo.
+  - **`uv sync --frozen`** — usa o lockfile como fonte de verdade e sincroniza sem atualizá-lo.
+- **Grupos de dependências** — para sincronizar apenas as dependências de runtime (sem o grupo `dev`), use **`uv sync --no-dev`**.
+- **Manter pacotes extras** — quando você quer manter pacotes adicionais instalados no ambiente, use **`uv sync --inexact`**.
+
+### Passo 1.4 — Definir a versão do Python
+
+O arquivo `.python-version` indica qual Python o UV usa. **PowerShell:** `Set-Content -Path ".python-version" -Value "3.13"`. **Bash:** `echo "3.13" > .python-version` (redireciona a saída para o arquivo).
+
+### Passo 1.5 — Adicionar dependências principais
+
+```bash
+uv add fastapi "uvicorn[standard]" pydantic pydantic-settings python-dotenv supabase supabase-pydantic langchain langchain-openai langchain-community langchain-google-genai openai google-generativeai aiohttp pytesseract pillow pandas plotly pdf2image python-multipart
+```
+
+**uv add** adiciona pacotes e instala no ambiente. Principais: **fastapi** e **uvicorn[standard]** (API e servidor); **pydantic**, **pydantic-settings**, **python-dotenv** (config e env); **supabase** e **supabase-pydantic** (banco/auth); **langchain** e **openai**/**google-generativeai** (IA); **aiohttp** (HTTP assíncrono); **pytesseract**, **pillow**, **pdf2image** (OCR e imagens); **pandas**, **plotly** (dados e gráficos); **python-multipart** (upload na FastAPI).
+
+### Passo 1.6 — Adicionar dependências de desenvolvimento
+
+```bash
+uv add --dev pytest pytest-asyncio black ruff mypy httpx
+```
+
+**uv add --dev** adiciona ao grupo de desenvolvimento. **pytest** e **pytest-asyncio** (testes); **black** e **ruff** (formatação e lint); **mypy** (tipos); **httpx** (cliente HTTP para testes).
+
+Ambiente em `backend/.venv`. Ativar: PowerShell `\.venv\Scripts\Activate.ps1`, Bash `source .venv/bin/activate`. Ou usar `uv run python ...` / `uv run uvicorn ...` sem ativar.
+
+### Passo 1.7 — Verificar o ambiente e dependências
+
+Para listar as dependências instaladas e suas versões:
+
+`uv tree`
+
+---
+
 ## Próximos passos — Como executar
 
-_(Adicione aqui as instruções de instalação de dependências e execução do projeto, por exemplo: ambiente virtual, `pip install`, `streamlit run`, etc.)_
+_(Adicione aqui as instruções de instalação de dependências e execução do projeto, por exemplo: `uv run uvicorn app.main:app`, `streamlit run`, etc.)_
