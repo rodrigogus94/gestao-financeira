@@ -309,6 +309,178 @@ Para listar as dependências instaladas e suas versões:
 
 ---
 
+## Fase 2 — Configuração do Supabase
+
+Nesta fase você cria um projeto no Supabase e separa as credenciais que o backend e o frontend usam.
+
+### Passo 2.1 — Acessar o Supabase e criar o projeto
+
+1) Acesse o site do Supabase: `https://supabase.com`
+
+2) Crie uma conta (plano gratuito) e faça login.
+
+3) Crie um novo projeto:
+
+- **Organization**: selecione ou crie uma organização.
+- **Project name**: escolha um nome (ex.: `gestao-financeira`).
+- **Database password**: defina uma senha forte para o banco (guarde em local seguro).
+- **Region**: escolha a região mais próxima para melhorar latência.
+
+### Passo 2.2 — Anotar as credenciais do projeto
+
+No painel do Supabase, abra as configurações do projeto e localize as chaves de API:
+
+- Caminho comum: **Project Settings → API**
+
+Anote estas credenciais:
+
+- **URL do projeto** (`SUPABASE_URL`): endereço base da sua instância (ex.: `https://xxxx.supabase.co`).
+- **Anon key** (`SUPABASE_KEY` no `.env.example`): chave usada por aplicações cliente (ex.: frontend) com as permissões controladas por RLS (Row Level Security).
+- **Service role key** (`SUPABASE_SERVICE_KEY` no `.env.example`): chave administrativa para uso em ambiente servidor (backend, jobs e scripts), com permissões amplas no projeto.
+
+### Passo 2.3 — Guardar as credenciais no ambiente do projeto
+
+1) Use o arquivo `.env.example` como modelo e crie um `.env` (ou defina variáveis no seu sistema/host).
+
+2) Preencha as variáveis:
+
+```env
+SUPABASE_URL="..."
+SUPABASE_KEY="..."
+SUPABASE_SERVICE_KEY="..."
+```
+
+**Esclarecimento:** Uma prática comum é manter a `SUPABASE_SERVICE_KEY` apenas no ambiente do backend, enquanto a `SUPABASE_KEY` pode ser usada no frontend quando o projeto estiver configurado com RLS.
+
+### Passo 2.3.1 — Criar o arquivo `.env` a partir do `.env.example`
+
+O arquivo `.env.example` lista todas as variáveis esperadas pelo projeto. Você pode copiá-lo e preencher com seus valores.
+
+**PowerShell (na raiz do projeto):**
+
+```powershell
+Copy-Item ".env.example" ".env"
+```
+
+- **Copy-Item** — copia um arquivo para outro caminho.
+
+**Bash (na raiz do projeto):**
+
+```bash
+cp .env.example .env
+```
+
+- **cp** — copia um arquivo para outro caminho.
+
+### Passo 2.3.2 — Entender cada variável do `.env.example`
+
+A seguir, um guia curto do que cada variável representa (com foco em estudo e organização).
+
+#### Supabase
+
+- **SUPABASE_URL**: URL do projeto no Supabase (base URL da instância).
+- **SUPABASE_KEY**: chave *anon* (uso comum em aplicações cliente, com permissões controladas por RLS).
+- **SUPABASE_SERVICE_KEY**: chave *service role* (uso comum no backend, para operações administrativas e rotinas internas).
+
+#### OpenAI
+
+- **OPENAI_API_KEY**: credencial de acesso à API da OpenAI.
+- **OPENAI_MODEL**: nome do modelo padrão para o provider OpenAI (ex.: `gpt-4`).
+
+#### Google Gemini
+
+- **GEMINI_API_KEY**: credencial de acesso à API do Google Gemini.
+- **GEMINI_MODEL**: nome do modelo padrão para o provider Gemini (ex.: `gemini-pro`).
+
+#### Ollama (local)
+
+- **OLLAMA_BASE_URL**: URL do servidor do Ollama rodando localmente (por padrão, `http://localhost:11434`).
+- **OLLAMA_MODEL**: nome do modelo local no Ollama (ex.: `llama3.2`). Escolha um modelo que exista na sua instalação.
+
+#### Seleção de provider de IA
+
+- **DEFAULT_IA_PROVIDER**: provider principal (ex.: `openai`, `gemini`, `ollama`).
+- **FALLBACK_IA_PROVIDER**: provider de apoio quando o principal estiver indisponível (ex.: `ollama`).
+
+#### Configurações da API
+
+- **API_TITLE**: título da API exibido na documentação (OpenAPI/Swagger).
+- **API_VERSION**: versão da API exibida na documentação.
+- **DEBUG**: habilita modo de depuração (geralmente `true` ou `false`).
+
+### Passo 2.3.3 — Separar variáveis do backend e do frontend
+
+Para manter a organização:
+
+- **Backend**: costuma usar `SUPABASE_SERVICE_KEY` e as chaves de providers de IA (`OPENAI_API_KEY`, `GEMINI_API_KEY`) para tarefas internas.
+- **Frontend**: costuma usar `SUPABASE_URL` e `SUPABASE_KEY` quando o acesso estiver protegido por RLS e autenticação.
+
+### Passo 2.4 — Criar as tabelas e políticas no Supabase (SQL)
+
+Este repositório inclui um script SQL para preparar o banco no Supabase:
+
+- `backend/scripts/setup-supabase.sql`
+
+Para aplicar:
+
+1) No painel do Supabase, abra **SQL Editor**.
+2) Crie uma nova query.
+3) Cole o conteúdo de `backend/scripts/setup-supabase.sql` e execute.
+
+O script cria:
+
+- **Tabelas**: `despesas`, `orcamentos_mensais`, `documentos`
+- **Índices**: para consultas por usuário/data e por categoria
+- **Triggers**: para manter `updated_at` atualizado automaticamente
+- **RLS e políticas**: regras para que cada usuário acesse apenas os próprios dados usando `auth.uid()`
+
+---
+
+## Fase 3 — Implementação dos modelos (Pydantic)
+
+Nesta fase o projeto define os modelos de dados com Pydantic (validação e serialização) e a configuração centralizada do backend.
+
+### Passo 3.1 — Modelo de Despesa
+
+O modelo de despesa fica em `backend/app/models/domain/despesa.py` e é usado na API e na persistência no Supabase.
+
+**Enums (valores permitidos):**
+
+- **CategoriaDespesa**: `alimentacao`, `transporte`, `saude`, `educacao`, `moradia`, `lazer`, `outros` — alinhado ao `CHECK` da tabela `despesas` no SQL.
+- **StatusDespesa**: `pendente`, `confirmada`, `cancelada`.
+- **FonteDespesa**: `manual`, `textual_natural`, `ocr`, `importacao` — indica como a despesa foi registrada.
+
+**Modelos Pydantic:**
+
+- **DespesaBase**: campos comuns — `valor` (obrigatório, maior que zero), `categoria`, `data`, `descricao` (opcional), `status` (padrão `pendente`). Inclui validador para garantir que o valor seja positivo.
+- **DespesaCreate**: estende a base com `usuario_id` (obrigatório), `fonte` (padrão `manual`) e `metadata` (opcional). Usado ao receber dados para criar uma nova despesa.
+- **DespesaInDB**: representa a despesa tal como está no banco — adiciona `id`, `usuario_id`, `fonte`, `metadata`, `created_at` e `updated_at`. Usa `from_attributes = True` para construção a partir de ORM/registros do Supabase.
+- **DespesaUpdate**: todos os campos opcionais para atualização parcial (`valor`, `categoria`, `data`, `descricao`, `status`).
+
+**Uso:** Os schemas servem para validar entrada da API, documentar o OpenAPI e mapear dados entre a aplicação e o banco.
+
+### Passo 3.2 — Configuração do projeto
+
+A configuração centralizada fica em `backend/app/core/config.py`, usando **pydantic-settings** para carregar variáveis do ambiente (e do arquivo `.env`).
+
+**Classe `Settings`:**
+
+- **Supabase**: `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_KEY` (obrigatórios para o backend).
+- **OpenAI**: `OPENAI_API_KEY` (opcional), `OPENAI_MODEL` (padrão `gpt-4`).
+- **Google Gemini**: `GEMINI_API_KEY` (opcional), `GEMINI_MODEL` (padrão `gemini-pro`).
+- **Ollama**: `OLLAMA_BASE_URL` (padrão `http://localhost:11434`), `OLLAMA_MODEL` (padrão definido no código).
+- **Seleção de IA**: `DEFAULT_IA_PROVIDER`, `FALLBACK_IA_PROVIDER` (ex.: `openai` e `ollama`).
+- **API**: `API_TITLE`, `API_VERSION`, `DEBUG`.
+
+**Config da classe:**
+
+- **env_file = ".env"** — carrega variáveis a partir do `.env` na raiz do projeto (ou do diretório de trabalho).
+- **case_sensitive = True** — os nomes das variáveis de ambiente respeitam maiúsculas e minúsculas.
+
+Uma instância global **`settings = Settings()`** é exportada para uso no resto da aplicação (ex.: em rotas e serviços). As variáveis obrigatórias (Supabase) precisam estar definidas no `.env` (ou no ambiente) para a aplicação subir sem erro.
+
+---
+
 ## Próximos passos — Como executar
 
 _(Adicione aqui as instruções de instalação de dependências e execução do projeto, por exemplo: `uv run uvicorn app.main:app`, `streamlit run`, etc.)_
