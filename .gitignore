@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+dist/
+build/
+
+# UV
+uv.lock
+.python-version
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Streamlit
+.streamlit/
+
+# Docker
+*.pid
+*.log
+
+# Banco
+*.db
+*.sqlite3
+EOF
