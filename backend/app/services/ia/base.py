@@ -1,74 +1,84 @@
 """
 Base para provedores de IA e modelo de extração de despesas.
 
-Define a interface abstrata IAProvider (métodos que cada provedor — OpenAI,
-Gemini, Ollama — deve implementar) e o schema ExtracaoDespesa, usado quando
-a IA interpreta texto natural e devolve dados estruturados de uma despesa.
-Inclui helpers para extrair JSON, valor e data de strings (respostas da IA ou
-texto do usuário).
+Este módulo define:
+1. ExtracaoDespesa: modelo Pydantic que representa o resultado da extração de uma
+   despesa a partir de texto natural (valor, categoria, data, descrição, fonte,
+   status, provedor, confiança e timestamps).
+2. IAProvider: interface abstrata (ABC) que declara os métodos que qualquer provedor
+   de IA deve implementar: extrair_despesa, classificar_categoria, gerar_relatorio,
+   perguntar. Inclui helpers opcionais _extrair_json, _extrair_valor, _extrair_data
+   para parsear respostas da IA ou texto do usuário.
+
+A implementação concreta que usa essa base está em provider.py (classe IAProvider
+que recebe o tipo "openai"|"gemini"|"ollama" e delega para a API correspondente).
 """
 
 import json
 import re
 from abc import ABC, abstractmethod
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from pydantic import BaseModel, Field
+
+
+# =============================================================================
+# Modelo de dados: resultado da extração de despesa
+# =============================================================================
 
 
 class ExtracaoDespesa(BaseModel):
     """
     Resultado da extração de uma despesa a partir de texto natural ou da IA.
 
-    Usado quando o usuário descreve uma despesa em linguagem natural ou quando
-    a IA processa um documento e devolve campos estruturados. Os campos
-    valor, categoria, data e descricao são os dados principais; fonte, status
-    e provedor indicam origem e pipeline; confianca reflete a certeza da
-    extração (0.0 a 1.0); created_at/updated_at podem vir da IA ou ser
-    preenchidos pelo backend.
+    Usado quando o usuário descreve uma despesa em linguagem natural (ex.: "Gastei
+    50 reais em Uber ontem") ou quando a IA processa um documento e devolve campos
+    estruturados. Os campos valor, categoria, data e descricao são os dados principais
+    da despesa; fonte indica a origem do registro (manual, textual_natural, ocr);
+    status (pendente, confirmada); provedor indica qual IA fez a extração; confianca
+    reflete a certeza da extração (0.0 a 1.0). created_at e updated_at são
+    preenchidos automaticamente se não fornecidos (default_factory com UTC).
     """
 
-    valor: float = Field(..., description="Valor monetário da despesa.")
+    valor: float = Field(..., description="Valor monetário da despesa em reais.")
     categoria: str = Field(
         ...,
         description=(
             "Categoria da despesa (ex.: alimentacao, transporte); "
-            "idealmente alinhada ao enum CategoriaDespesa."
+            "deve ser uma das chaves de CATEGORIA_VALIDAS em config."
         ),
     )
-    data: date = Field(..., description="Data em que a despesa ocorreu.")
-    descricao: str = Field(..., description="Descrição livre da despesa.")
+    data: date = Field(..., description="Data em que a despesa ocorreu (YYYY-MM-DD).")
+    descricao: str = Field(..., description="Descrição curta da despesa.")
     fonte: str = Field(
         ...,
-        description=(
-            "Origem do registro (ex.: manual, textual_natural, ocr); alinhado a FonteDespesa."
-        ),
+        description="Origem do registro: manual, textual_natural, ocr.",
     )
     status: str = Field(
         ...,
-        description="Status da despesa (ex.: pendente, confirmada); alinhado a StatusDespesa.",
+        description="Status da despesa: pendente, confirmada, etc.",
     )
     provedor: str = Field(
         ...,
-        description="Nome do provedor de IA que fez a extração (ex.: openai, gemini, ollama).",
+        description="Nome do provedor de IA que fez a extração (ex.: OpenAI, Ollama).",
     )
     confianca: float = Field(
         default=1.0,
         ge=0.0,
         le=1.0,
-        description=(
-            "Grau de confiança da extração, entre 0 e 1 (ex.: score da IA ou heurística)."
-        ),
+        description="Grau de confiança da extração entre 0 e 1 (score da IA ou heurística).",
     )
     created_at: datetime = Field(
-        ..., description="Data e hora de criação do registro ou da extração."
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Data e hora de criação do registro ou da extração (UTC).",
     )
     updated_at: datetime = Field(
-        ..., description="Data e hora da última atualização."
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Data e hora da última atualização (UTC).",
     )
 
     class Config:
-        """Exemplo usado na documentação do schema (OpenAPI)."""
+        """Configuração do modelo para documentação OpenAPI e serialização."""
 
         json_schema_extra = {
             "examples": [
@@ -88,6 +98,11 @@ class ExtracaoDespesa(BaseModel):
         }
 
 
+# =============================================================================
+# Interface abstrata do provedor de IA
+# =============================================================================
+
+
 class IAProvider(ABC):
     """
     Interface base para todos os provedores de IA do sistema.
@@ -102,21 +117,13 @@ class IAProvider(ABC):
     @property
     @abstractmethod
     def nome(self) -> str:
-        """
-        Nome legível do provedor para logs e respostas da API.
-
-        Ex.: "OpenAI", "Google Gemini", "Ollama".
-        """
+        """Nome legível do provedor para logs e respostas (ex.: OpenAI, Ollama)."""
         ...
 
     @property
     @abstractmethod
     def tipo(self) -> str:
-        """
-        Identificador do tipo do provedor para configuração e roteamento.
-
-        Ex.: "openai", "google-generativeai", "ollama" (alinhado a DEFAULT_IA_PROVIDER).
-        """
+        """Identificador do tipo para configuração (ex.: openai, gemini, ollama)."""
         ...
 
     @abstractmethod
@@ -125,11 +132,10 @@ class IAProvider(ABC):
         Interpreta texto natural e devolve uma despesa estruturada.
 
         Args:
-            texto: Frase ou parágrafo descrevendo a despesa
-                (ex.: "Gastei 50 reais em transporte ontem").
+            texto: Frase descrevendo a despesa (ex.: "Gastei 50 reais em transporte ontem").
 
         Returns:
-            ExtracaoDespesa com valor, categoria, data, descrição etc. preenchidos.
+            ExtracaoDespesa com valor, categoria, data, descrição preenchidos.
 
         Raises:
             ValueError: Se o texto não puder ser interpretado ou a resposta da IA for inválida.
@@ -139,23 +145,23 @@ class IAProvider(ABC):
     @abstractmethod
     async def classificar_categoria(self, texto: str) -> str:
         """
-        Sugere a categoria da despesa com base na descrição ou no texto.
+        Sugere a categoria da despesa com base na descrição.
 
         Args:
-            texto: Descrição da despesa ou trecho a classificar.
+            texto: Descrição da despesa a classificar.
 
         Returns:
-            Código da categoria (ex.: "alimentacao", "transporte"), alinhado a CategoriaDespesa.
+            Código da categoria (ex.: alimentacao, transporte).
         """
         ...
 
     @abstractmethod
     async def gerar_relatorio(self, despesas: dict) -> str:
         """
-        Gera um relatório em texto (ou markdown) a partir de uma lista/estrutura de despesas.
+        Gera um relatório em texto a partir de uma estrutura de despesas.
 
         Args:
-            despesas: Estrutura com despesas (ex.: lista de dicts ou de modelos) para sumarizar.
+            despesas: Dict ou estrutura com despesas para sumarizar.
 
         Returns:
             Texto do relatório gerado pela IA.
@@ -165,16 +171,20 @@ class IAProvider(ABC):
     @abstractmethod
     async def perguntar(self, pergunta: str, contexto: str) -> str:
         """
-        Responde uma pergunta do usuário usando um contexto (ex.: despesas do mês, orçamento).
+        Responde uma pergunta usando um contexto (ex.: despesas do mês).
 
         Args:
             pergunta: Pergunta em linguagem natural.
-            contexto: Texto ou dados estruturados que a IA deve usar como base.
+            contexto: Dados que a IA deve usar como base.
 
         Returns:
             Resposta em texto gerada pela IA.
         """
         ...
+
+    # -------------------------------------------------------------------------
+    # Helpers opcionais para parsear respostas da IA ou texto do usuário
+    # -------------------------------------------------------------------------
 
     async def _extrair_json(self, texto: str) -> dict:
         """
@@ -195,22 +205,15 @@ class IAProvider(ABC):
         """
         try:
             texto = texto.strip()
-
-            # Remove abertura de bloco markdown (```json ou ```)
             if texto.startswith("```json"):
                 texto = texto[7:]
             elif texto.startswith("```"):
                 texto = texto[3:]
-
-            # Remove fechamento do bloco (``` no final)
             if texto.endswith("```"):
                 texto = texto[:-3].strip()
-
-            # Localiza o primeiro objeto JSON na string (suporta quebras de linha)
             json_match = re.search(r"\{.*\}", texto, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group())
-
             return json.loads(texto)
         except Exception as e:
             raise ValueError(f"Erro ao extrair JSON: {e}\nTexto: {texto}") from e
@@ -219,22 +222,21 @@ class IAProvider(ABC):
         """
         Extrai um valor numérico de uma string (ex.: "R$ 50,00" ou "100.50").
 
-        Remove "R$", aceita vírgula ou ponto como decimal e retorna um float.
-        Útil para tratar respostas da IA ou entrada do usuário.
+        Remove "R$", aceita vírgula ou ponto como decimal. Útil para tratar
+        respostas da IA ou entrada do usuário.
 
         Args:
-            texto: String contendo um valor (ex.: "R$ 123,45" ou "10.5").
+            texto: String contendo um valor monetário ou numérico.
 
         Returns:
             Valor como float.
 
         Raises:
-            ValueError: Se nenhum número for encontrado no texto.
+            ValueError: Se nenhum número for encontrado.
         """
         texto_limpo = texto.replace("R$", "").strip()
         padrao = r"(\d+[.,]?\d*)"
         match = re.search(padrao, texto_limpo)
-
         if match:
             valor_str = match.group(1).replace(",", ".")
             return float(valor_str)
