@@ -13,27 +13,40 @@ backend/app/
 ├── __init__.py
 ├── main.py
 ├── core/
-│   └── __init__.py
+│   ├── __init__.py
+│   └── config.py          # Configuração (Settings) carregada do .env
 ├── models/
 │   ├── __init__.py
 │   └── domain/
+│       └── despesa.py     # Modelos Pydantic de despesa (enums, Create, InDB, Update)
 ├── services/
 │   ├── __init__.py
-│   ├── ia/providers/
+│   ├── ia/
+│   │   ├── config.py      # ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt
+│   │   ├── base.py        # ExtracaoDespesa e interface abstrata IAProvider (helpers de parsing)
+│   │   ├── clients.py     # ClienteFactory: criar_cliente (OpenAI/Gemini/Ollama), chamar_ollama
+│   │   ├── provider.py    # IAProvider concreto (um por tipo: openai, gemini, ollama)
+│   │   ├── factory.py    # IAProviderFactory: get_provider (singleton), listar_provedores_disponiveis
+│   │   └── manager.py    # IAManager e EstrategiaSelecao (principal, fallback, paralelo, votacao, rapido, preciso)
 │   └── ocr/
 ├── api/
 │   ├── __init__.py
 │   └── routes/
 └── scripts/
 
+tests/
+├── conftest.py            # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
+├── test_ia_config.py       # Testes de get_config, get_prompt, categorias e prompts
+├── test_ia_base.py         # Testes do modelo ExtracaoDespesa
+├── test_ia_factory.py      # Testes da IAProviderFactory
+└── test_ia_manager.py      # Testes do IAManager e estratégias
+
 frontend/
 ├── streamlit_app.py
 ├── api_client.py
 └── components/
 
-tests/
 docs/
-
 .env.example  Makefile  setup.sh  docker-compose.yml
 ```
 
@@ -481,6 +494,93 @@ Uma instância global **`settings = Settings()`** é exportada para uso no resto
 
 ---
 
-## Próximos passos — Como executar
+## Fase 4 — Camada de serviços de IA
 
-_(Adicione aqui as instruções de instalação de dependências e execução do projeto, por exemplo: `uv run uvicorn app.main:app`, `streamlit run`, etc.)_
+A camada de IA fica em `backend/app/services/ia/` e é composta por seis módulos que trabalham juntos: **config**, **base**, **clients**, **provider**, **factory** e **manager**.
+
+### Passo 4.1 — config.py
+
+Centraliza a configuração dos provedores e os prompts:
+
+- **ProviderConfig**: modelo Pydantic com nome, tipo, api_key_attr, model_attr, base_url_attr, suporta_json, precisa_limpeza, prompt_prefix, prompt_suffix, etc.
+- **PROVIDER_CONFIGS**: dicionário com as configs de `openai`, `gemini` e `ollama`.
+- **CATEGORIA_VALIDAS**: categorias aceitas para despesas (alimentacao, transporte, saude, educacao, moradia, lazer, outros).
+- **PROMPT**: templates dos prompts (`extrair_despesa`, `classificar_categoria`, `gerar_relatorio`, `perguntar`) com placeholders `{texto}`, `{data_hoje}`, `{categorias}`, etc.
+- **get_config(tipo)** e **get_prompt(nome, **kwargs)**: funções para obter a config de um provedor e o prompt já formatado.
+
+### Passo 4.2 — base.py
+
+Define o modelo de dados e a interface abstrata:
+
+- **ExtracaoDespesa**: modelo Pydantic com valor, categoria, data, descricao, fonte, status, provedor, confianca (0–1), created_at e updated_at (com default em UTC).
+- **IAProvider** (ABC): interface com nome, tipo, extrair_despesa, classificar_categoria, gerar_relatorio, perguntar e helpers _extrair_json, _extrair_valor, _extrair_data para parsing de respostas da IA.
+
+### Passo 4.3 — clients.py
+
+**ClienteFactory** cria o cliente correto por tipo:
+
+- **criar_cliente(tipo)**: retorna AsyncOpenAI (openai), GenerativeModel (gemini) ou um dict com base_url e model (ollama).
+- **chamar_ollama(prompt, config, temperatura)**: envia POST para `/api/generate` do Ollama via aiohttp e retorna o texto gerado.
+
+### Passo 4.4 — provider.py
+
+Uma única classe **IAProvider** (concreta) parametrizada pelo tipo (`openai`, `gemini`, `ollama`). No `__init__` carrega a config e o cliente; os métodos públicos montam o prompt com get_prompt(), aplicam prefix/suffix, chamam _chamar_api() e tratam a resposta. Inclui fallback: em falha na extração usa _extrair_simples() (heurística por palavras-chave) e _extrair_fallback() para devolver uma ExtracaoDespesa com confiança menor.
+
+### Passo 4.5 — factory.py
+
+**IAProviderFactory** mantém uma instância de IAProvider por tipo (singleton):
+
+- **get_provider(tipo)**: retorna o provedor do tipo pedido (ou DEFAULT_IA_PROVIDER se tipo for inválido); em erro tenta o provedor padrão.
+- **listar_provedores_disponiveis()**: retorna lista com nome, tipo e status (disponivel/indisponivel) para cada provedor configurado.
+
+### Passo 4.6 — manager.py
+
+**IAManager** aplica estratégias de uso dos provedores:
+
+- **EstrategiaSelecao**: PRINCIPAL (usa provider_default), RAPIDO (ollama), PRECISO (openai), FALLBACK (tenta em ordem até um suceder), PARALELO (todos em paralelo, retorna o de maior confiança), VOTACAO (agrega valor médio e categoria mais votada).
+- **extrair_despesa(texto, provider_default)**: delega para o provedor ou para _executar_paralelo, _executar_fallback ou _executar_votacao conforme a estratégia.
+
+---
+
+## Testes
+
+Os testes ficam na pasta **`tests/`** na raiz do repositório. O `conftest.py` define variáveis de ambiente mínimas (SUPABASE_*) para o Settings carregar sem `.env` e oferece as fixtures `extracao_exemplo` e `texto_despesa`. Os módulos `test_ia_config.py`, `test_ia_base.py`, `test_ia_factory.py` e `test_ia_manager.py` cobrem config, modelo ExtracaoDespesa, factory e manager (com mocks nos provedores).
+
+**Executar os testes** (a partir da pasta `backend`, para o `pythonpath` e `testpaths` do pyproject.toml):
+
+```powershell
+cd backend
+uv run pytest ../tests -v
+```
+
+Ou com saída resumida:
+
+```powershell
+cd backend
+uv run pytest ../tests -v --tb=short
+```
+
+---
+
+## Como executar
+
+**Backend (API FastAPI):**
+
+Na pasta `backend`, com dependências já instaladas (`uv sync`):
+
+```powershell
+cd backend
+uv run uvicorn app.main:app --reload
+```
+
+A API fica disponível em `http://127.0.0.1:8000`. A documentação interativa (Swagger) em `http://127.0.0.1:8000/docs`.
+
+**Frontend (Streamlit):**
+
+Na raiz ou na pasta do frontend, com o ambiente configurado:
+
+```powershell
+streamlit run frontend/streamlit_app.py
+```
+
+**Dependências:** na pasta `backend`, use `uv sync` para instalar/atualizar o ambiente conforme o `pyproject.toml`. Para incluir dependências de desenvolvimento (pytest, ruff, etc.): `uv sync` já as inclui pelo grupo `dev` definido no projeto.
