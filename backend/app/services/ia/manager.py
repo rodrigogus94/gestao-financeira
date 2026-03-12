@@ -75,7 +75,7 @@ class IAManager:
         self.estrategia = estrategia
         # Provedores considerados rápidos (ex.: Ollama local) e precisos (ex.: OpenAI, Gemini).
         self.provedores_rapidos = ["ollama"]
-        self.provedores_precisos = ["openai", "gemini"]
+        self.provedores_precisos = ["openai", "gemini", "claude"]
 
     async def extrair_despesa(
         self, texto: str, provider_default: Optional[str] = None
@@ -131,7 +131,7 @@ class IAManager:
         ExtracaoDespesa com maior confiança (max por confianca).
         """
         tarefas = []
-        for tipo in ["openai", "gemini", "ollama"]:
+        for tipo in ["openai", "gemini", "ollama", "claude"]:
             try:
                 provider = IAProviderFactory.get_provider(tipo)
                 tarefas.append(provider.extrair_despesa(texto))
@@ -161,7 +161,7 @@ class IAManager:
             tentativas.append(provider_default)
         if hasattr(settings, "FALLBACK_IA_PROVIDER") and settings.FALLBACK_IA_PROVIDER:
             tentativas.append(settings.FALLBACK_IA_PROVIDER)
-        tentativas.extend(["openai", "gemini", "ollama"])
+        tentativas.extend(["openai", "gemini", "ollama", "claude"])
         for tipo in tentativas:
             try:
                 provider = IAProviderFactory.get_provider(tipo)
@@ -181,7 +181,7 @@ class IAManager:
         primeiro resultado; provedor é "Votação (N provedores)" e confianca 0.95.
         """
         resultados: List[ExtracaoDespesa] = []
-        for tipo in ["openai", "gemini", "ollama"]:
+        for tipo in ["openai", "gemini", "ollama", "claude"]:
             try:
                 provider = IAProviderFactory.get_provider(tipo)
                 resultados.append(await provider.extrair_despesa(texto))

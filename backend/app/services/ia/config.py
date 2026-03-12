@@ -86,6 +86,18 @@ PROVIDER_CONFIGS = {
         prompt_prefix="[INST]",  # Formato instrução para modelos Llama/etc.
         prompt_suffix="[/INST]",
     ),
+
+    "claude": ProviderConfig(
+        name="Anthropic Claude",
+        tipo="claude",
+        api_key_attr="CLAUDE_API_KEY",
+        model_attr="CLAUDE_MODEL",
+        suporta_json=True,
+        precisa_limpeza=True,
+        temperatura_attr=0.1,
+        prompt_prefix="\n\nHuman",
+        prompt_suffix="\n\nAssistant",
+    ),
 }
 
 

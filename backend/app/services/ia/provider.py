@@ -179,6 +179,15 @@ class IAProvider(ABC):
                     prompt, self.cliente, temperatura
                 )
 
+            elif self.tipo == "claude":
+                response = await self.cliente.messages.create(
+                    model=settings.CLAUDE_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperatura,
+                    max_tokens=self.config.max_tokens_attr,
+                )
+                return response.choices[0].message.content
+
             else:
                 raise ValueError(
                     f"Tipo de provedor {self.tipo} não suportado ou desconhecido."

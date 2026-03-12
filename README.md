@@ -542,6 +542,122 @@ Uma única classe **IAProvider** (concreta) parametrizada pelo tipo (`openai`, `
 
 ---
 
+## Passo a passo — Adicionar um novo modelo de IA
+
+Para integrar um novo provedor de IA (ex.: Claude, Groq, outro modelo), siga estes passos na ordem. O identificador do provedor (ex.: `"claude"`) será usado em todo o fluxo.
+
+### 1. Variáveis de ambiente (Settings e .env)
+
+**Arquivo:** `backend/app/core/config.py`
+
+- Adicione os campos na classe **Settings** (nome da API key, modelo e, se existir, URL base), por exemplo:
+
+```python
+# --- Novo provedor (ex.: Claude) ---
+CLAUDE_API_KEY: str | None = Field(
+    default=None,
+    env="CLAUDE_API_KEY",
+    description="Chave da API Anthropic Claude.",
+)
+CLAUDE_MODEL: str = Field(
+    default="claude-3-sonnet-20240229",
+    env="CLAUDE_MODEL",
+    description="Modelo Claude usado nas chamadas.",
+)
+```
+
+- Atualize o **`.env.example`** (e o seu `.env`) com as novas variáveis, por exemplo: `CLAUDE_API_KEY`, `CLAUDE_MODEL`.
+
+### 2. Configuração do provedor (config.py)
+
+**Arquivo:** `backend/app/services/ia/config.py`
+
+- Em **PROVIDER_CONFIGS**, adicione uma nova entrada com a chave igual ao identificador do provedor (ex.: `"claude"`):
+
+```python
+"claude": ProviderConfig(
+    name="Anthropic Claude",
+    tipo="claude",
+    api_key_attr="CLAUDE_API_KEY",
+    model_attr="CLAUDE_MODEL",
+    suporta_json=True,       # ou False se a API não devolver JSON nativo
+    precisa_limpeza=True,     # True se a resposta puder vir com ```json ... ```
+    temperatura_attr=0.1,
+    prompt_prefix="",        # ou o formato esperado pelo modelo (ex.: "\n\nHuman")
+    prompt_suffix="",        # ex.: "\n\nAssistant"
+),
+```
+
+- Ajuste **suporta_json** e **precisa_limpeza** conforme o comportamento da API (resposta pura JSON ou texto com JSON embutido). **prompt_prefix** e **prompt_suffix** são opcionais e dependem do formato de prompt do modelo.
+
+### 3. Cliente do provedor (clients.py)
+
+**Arquivo:** `backend/app/services/ia/clients.py`
+
+- Se o provedor tiver **SDK oficial em Python**: importe o pacote e, em **ClienteFactory.criar_cliente(tipo)**, adicione um novo `elif tipo == "claude":` (ou o identificador escolhido) que instancia o cliente usando `settings.CLAUDE_API_KEY` (e modelo/URL se necessário). O método deve **retornar** esse cliente para o `provider.py` usar.
+
+- Se o provedor for **apenas API HTTP** (como o Ollama): faça `criar_cliente` retornar um **dict** com `base_url`, `model` e o que for necessário e, em **provider.py**, implemente a chamada HTTP em **_chamar_api** (ou crie um método estático em `ClienteFactory`, como **chamar_ollama**, e chame esse método em `_chamar_api`).
+
+### 4. Chamada à API no provider (provider.py)
+
+**Arquivo:** `backend/app/services/ia/provider.py`
+
+- No método **IAProvider._chamar_api(self, prompt, temperatura)** (bloco `try` com vários `if self.tipo == ...`), adicione um novo ramo:
+
+```python
+elif self.tipo == "claude":
+    response = await self.cliente.messages.create(
+        model=settings.CLAUDE_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=temperatura,
+        max_tokens=self.config.max_tokens_attr,
+    )
+    return response.choices[0].message.content  # ou o campo correto do SDK
+```
+
+- Adapte **model**, **messages**, **temperature** e o modo de obter o texto da resposta conforme a documentação do SDK/API do novo provedor. O retorno de **_chamar_api** deve ser sempre uma **string** (texto da resposta).
+
+### 5. (Opcional) Manager — paralelo, fallback e votação
+
+**Arquivo:** `backend/app/services/ia/manager.py`
+
+- Se o novo provedor deve participar das estratégias **PARALELO**, **FALLBACK** ou **VOTACAO**, inclua o identificador nas listas fixas:
+  - **_executar_paralelo**: no `for tipo in ["openai", "gemini", "ollama"]`, adicione o novo tipo (ex.: `"claude"`).
+  - **_executar_fallback**: em `tentativas.extend([...])`, adicione o novo tipo.
+  - **_executar_votacao**: no `for tipo in ["openai", "gemini", "ollama"]`, adicione o novo tipo.
+- Se fizer sentido, inclua o tipo em **provedores_rapidos** ou **provedores_precisos** no `__init__` do IAManager (para documentação/organização; as estratégias RAPIDO e PRECISO continuam fixas em "ollama" e "openai" hoje).
+
+### 6. Dependência Python (pyproject.toml)
+
+- Se o provedor usar um **pacote Python** (ex.: `anthropic` para Claude), adicione-o às dependências do backend:
+
+```powershell
+cd backend
+uv add anthropic
+```
+
+- Depois use esse pacote em **clients.py** (e, se necessário, em **provider.py**) conforme a documentação oficial.
+
+### 7. Testar
+
+- Defina no `.env` a API key e o modelo do novo provedor.
+- Use **DEFAULT_IA_PROVIDER** ou **provider_default** com o novo identificador e chame um endpoint que use extração de despesa (ou rode um script que use `IAProviderFactory.get_provider("claude")` e `extrair_despesa(texto)`).
+- Opcional: adicione testes em **tests/** para o novo tipo (ex.: em `test_ia_config.py` um `test_get_config_claude`; em `test_ia_factory.py` garantir que `get_provider("claude")` seja chamado corretamente com mocks).
+
+**Resumo dos arquivos a alterar:**
+
+| Arquivo | O que fazer |
+|--------|--------------|
+| `backend/app/core/config.py` | Novos campos em Settings (API key, model, base_url se houver). |
+| `.env.example` / `.env` | Novas variáveis (ex.: CLAUDE_API_KEY, CLAUDE_MODEL). |
+| `backend/app/services/ia/config.py` | Nova entrada em PROVIDER_CONFIGS. |
+| `backend/app/services/ia/clients.py` | Novo ramo em criar_cliente(tipo); método HTTP auxiliar se for API REST. |
+| `backend/app/services/ia/provider.py` | Novo ramo em _chamar_api() para chamar a API e retornar o texto. |
+| `backend/app/services/ia/manager.py` | (Opcional) Incluir o tipo nas listas de PARALELO, FALLBACK e VOTACAO. |
+| `backend/pyproject.toml` | (Se usar SDK) `uv add nome-do-pacote`. |
+
+---
+
 ## Testes
 
 Os testes ficam na pasta **`tests/`** na raiz do repositório. O `conftest.py` define variáveis de ambiente mínimas (SUPABASE_*) para o Settings carregar sem `.env` e oferece as fixtures `extracao_exemplo` e `texto_despesa`. Os módulos `test_ia_config.py`, `test_ia_base.py`, `test_ia_factory.py` e `test_ia_manager.py` cobrem config, modelo ExtracaoDespesa, factory e manager (com mocks nos provedores).

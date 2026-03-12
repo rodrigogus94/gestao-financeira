@@ -16,6 +16,7 @@ o prompt e a temperatura.
 import openai
 import google.generativeai as genai
 import ollama
+import anthropic
 import aiohttp
 from typing import Any, Dict
 from app.core.config import settings
@@ -63,6 +64,9 @@ class ClienteFactory:
                 "base_url": settings.OLLAMA_BASE_URL,
                 "model": settings.OLLAMA_MODEL,
             }
+        
+        elif tipo == "claude":
+            return anthropic.Anthropic(api_key=settings.CLAUDE_API_KEY)
 
         else:
             raise ValueError(f"Provider de IA '{tipo}' não suportado ou desconhecido.")
