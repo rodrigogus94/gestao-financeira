@@ -21,6 +21,7 @@ backend/app/
 │       └── despesa.py     # Modelos Pydantic de despesa (enums, Create, InDB, Update)
 ├── services/
 │   ├── __init__.py
+│   ├── supabase_service.py  # SupabaseService: CRUD despesas, resumo mensal, por categoria, evolução
 │   ├── ia/
 │   │   ├── config.py      # ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt
 │   │   ├── base.py        # ExtracaoDespesa e interface abstrata IAProvider (helpers de parsing)
@@ -655,6 +656,45 @@ uv add anthropic
 | `backend/app/services/ia/provider.py` | Novo ramo em _chamar_api() para chamar a API e retornar o texto. |
 | `backend/app/services/ia/manager.py` | (Opcional) Incluir o tipo nas listas de PARALELO, FALLBACK e VOTACAO. |
 | `backend/pyproject.toml` | (Se usar SDK) `uv add nome-do-pacote`. |
+
+---
+
+## Fase 5 — Serviço Supabase
+
+Nesta fase o projeto expõe uma camada de serviço para acessar o banco de dados e as funcionalidades do Supabase (tabelas, RLS, Auth quando aplicável). O backend usa as credenciais configuradas na Fase 2 (`SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_KEY`) para conectar ao projeto.
+
+### 5.1. Serviço de Banco de Dados
+
+O **serviço de banco de dados** está implementado em **`backend/app/services/supabase_service.py`**. A classe **SupabaseService** centraliza o cliente Supabase (criado com `SUPABASE_URL` e `SUPABASE_KEY`) e as operações sobre a tabela `despesas` e relatórios derivados. As rotas da API devem usar esse serviço em vez de acessar o Supabase diretamente.
+
+#### Implementação atual
+
+- **Cliente:** no `__init__`, o cliente é criado com `create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)`. Para operações que precisem bypassar RLS, pode-se usar `SUPABASE_SERVICE_KEY` em outra variante do serviço.
+- **Despesas — CRUD:**
+  - **salvar_despesa(despesa: DespesaCreate)** → insere na tabela `despesas`, adiciona `created_at`, retorna o registro como `DespesaInDB`.
+  - **listar_despesas(usuario_id, data_inicio?, data_fim?, categoria?, limit)** → lista despesas do usuário com filtros opcionais, ordenadas por data (mais recente primeiro), retorna `list[DespesaInDB]`.
+  - **atualizar_despesa(despesa_id, usuario_id, dados)** → atualização parcial com `updated_at`; retorna `DespesaInDB` se houver registro, `None` caso contrário.
+  - **deletar_despesa(despesa_id, usuario_id)** → remove o registro; retorna `True` se foi removido, `False` caso contrário.
+- **Relatórios e agregações:**
+  - **get_resumo_mensal(usuario_id, ano, mes)** → total, totais por categoria, quantidade, média por dia, maior despesa e período (início/fim em ISO).
+  - **get_despesas_por_categoria(usuario_id, data_inicio, data_fim)** → dict categoria → total (soma das despesas no período).
+  - **get_evolucao_mensal(usuario_id, ano, mes)** → lista de 12 itens (um por mês do ano) com `mes` e `total`.
+
+Todos os métodos são assíncronos (`async`). Os modelos `DespesaCreate` e `DespesaInDB` (e enums como `CategoriaDespesa`) vêm de `backend/app/models/domain/despesa.py`.
+
+#### Tabelas envolvidas (referência)
+
+As tabelas criadas pelo `backend/scripts/setup-supabase.sql` são:
+
+- **despesas**: `id`, `usuario_id`, `valor`, `categoria`, `data`, `descricao`, `fonte`, `status`, `metadata`, `created_at`, `updated_at`. Constraints: `categoria`, `fonte` e `status` com valores fixos (CHECK).
+- **orcamentos_mensais**: `id`, `usuario_id`, `ano`, `mes`, `limites` (JSONB), `created_at`, `updated_at`. UNIQUE em `(usuario_id, ano, mes)`.
+- **documentos**: `id`, `usuario_id`, `nome_arquivo`, `tipo_documento`, `conteudo_extraido` (JSONB), `status`, `created_at`.
+
+RLS está ativo; as políticas permitem que cada usuário acesse apenas os próprios dados (`usuario_id = auth.uid()::text`). O serviço atual usa a chave anon; para operações privilegiadas (ex.: jobs), use `SUPABASE_SERVICE_KEY` na criação do cliente.
+
+#### Integração com as rotas
+
+Nas rotas FastAPI (`backend/app/api/routes/`), importe ou injete **SupabaseService**, instancie (ou use um dependency) e chame os métodos acima. Assim a lógica de banco fica no serviço e as rotas permanecem enxutas. Orçamentos e documentos podem ser adicionados ao mesmo serviço ou em módulos separados quando necessário.
 
 ---
 
