@@ -32,6 +32,7 @@ backend/app/
 │   └── ocr/
 ├── api/
 │   ├── __init__.py
+│   ├── deps.py            # Dependências: HTTPBearer, singletons (Supabase, IA), get_current_user
 │   └── routes/
 └── scripts/
 
@@ -695,6 +696,18 @@ RLS está ativo; as políticas permitem que cada usuário acesse apenas os próp
 #### Integração com as rotas
 
 Nas rotas FastAPI (`backend/app/api/routes/`), importe ou injete **SupabaseService**, instancie (ou use um dependency) e chame os métodos acima. Assim a lógica de banco fica no serviço e as rotas permanecem enxutas. Orçamentos e documentos podem ser adicionados ao mesmo serviço ou em módulos separados quando necessário.
+
+---
+
+## Dependências da API (deps.py)
+
+O módulo **`backend/app/api/deps.py`** centraliza as dependências injetáveis usadas nas rotas FastAPI:
+
+- **`security = HTTPBearer()`** — exige o header `Authorization: Bearer <token>` nas rotas protegidas.
+- **Singletons** — `get_supabase_service()` e `get_ia_provider_manager()` devolvem a instância única de `SupabaseService` e `IAProviderManager`, evitando criar nova conexão a cada requisição.
+- **`get_current_user(credentials)`** — dependência assíncrona que extrai o token do header, valida (em desenvolvimento aceita `test-token` e `dev-token` e retorna `"usuario-teste"`; em produção deve validar com Supabase Auth) e retorna o identificador do usuário. Em caso de token inválido, levanta `HTTP 401` com `WWW-Authenticate: Bearer`.
+
+Uso nas rotas: declare `Depends(get_supabase_service)`, `Depends(get_ia_provider_manager)` ou `Depends(get_current_user)` nos parâmetros para injetar o serviço ou o ID do usuário atual.
 
 ---
 
