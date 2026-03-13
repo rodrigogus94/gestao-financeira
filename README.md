@@ -711,6 +711,26 @@ Uso nas rotas: declare `Depends(get_supabase_service)`, `Depends(get_ia_provider
 
 ---
 
+## 6. API e rotas
+
+### 6.2. Rotas de IA
+
+As rotas de IA ficam em **`backend/app/api/routes/ia.py`**, com prefixo **`/ia`**. Todas as rotas que precisam de usuário autenticado exigem o header `Authorization: Bearer <token>` (via `get_current_user`). A base da API é `http://127.0.0.1:8000` quando o backend está em execução.
+
+| Método | Endpoint | Autenticação | Descrição |
+|--------|----------|---------------|-----------|
+| **GET** | `/ia/provedores` | Não | Lista provedores de IA configurados (nome, tipo, status disponivel/indisponivel) e as estratégias de extração (PRINCIPAL, RAPIDO, PRECISO, FALLBACK, PARALELO, VOTACAO). |
+| **POST** | `/ia/extrair-despesa` | Sim | Extrai uma despesa a partir de texto em linguagem natural. Body: `texto`, `provedor` (opcional), `estrategia` (opcional), `Salvar` (bool). Opcionalmente persiste no Supabase com fonte TEXTUAL_NATURAL. |
+| **POST** | `/ia/perguntar` | Sim | Envia uma pergunta ao modelo de IA. Body: `pergunta`, `contexto` (opcional; se omitido, usa as últimas 50 despesas do usuário), `provedor` (opcional). |
+| **POST** | `/ia/comparar` | Sim | Compara a extração do mesmo texto em todos os provedores. Body: `{"texto": "..."}`. Retorna um resultado por provedor (ou objeto com "Erro" em falha). |
+| **POST** | `/ia/recarregar` | Não | Limpa o cache de provedores da fábrica; na próxima chamada os clientes são recriados (útil após alterar variáveis de ambiente). |
+
+**Exemplos de texto para extração:** `"Gastei 50 reais com almoço hoje"`, `"Uber 25 reais ontem"`, `"Comprei 100 reais de alimentos na mercearia"`, `"Paguei 150 reais de aluguel do mês"`.
+
+**Schemas de request/response:** `TextoRequest` / `TextoResponse` (extração), `PerguntaRequest` (perguntar), `ComparacaoResponse` (comparar). A documentação interativa (Swagger) em `/docs` exibe esses modelos e permite testar os endpoints.
+
+---
+
 ## Testes
 
 Os testes ficam na pasta **`tests/`** na raiz do repositório. O `conftest.py` define variáveis de ambiente mínimas (SUPABASE_*) para o Settings carregar sem `.env` e oferece as fixtures `extracao_exemplo` e `texto_despesa`. Os módulos `test_ia_config.py`, `test_ia_base.py`, `test_ia_factory.py` e `test_ia_manager.py` cobrem config, modelo ExtracaoDespesa, factory e manager (com mocks nos provedores).

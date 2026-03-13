@@ -97,3 +97,15 @@ class IAProviderFactory:
                     "erro": str(e),
                 })
         return disponiveis
+
+    @classmethod
+    def recarregar_provedores(cls) -> List[str]:
+        """
+        Limpa o cache de provedores (_instance) para forçar recriação na próxima chamada.
+
+        Útil após alteração de variáveis de ambiente (ex.: API keys) ou para
+        diagnóstico. Retorna a lista de tipos que estavam em cache.
+        """
+        tipos = list(cls._instance.keys())
+        cls._instance.clear()
+        return tipos
