@@ -713,9 +713,23 @@ Uso nas rotas: declare `Depends(get_supabase_service)`, `Depends(get_ia_provider
 
 ## 6. API e rotas
 
+### 6.1. Rotas de despesas
+
+As rotas de despesas ficam em **`backend/app/api/routes/despesas.py`**, com prefixo **`/despesas`**. Todas as rotas que precisam de usuário autenticado exigem o header `Authorization: Bearer <token>` (via `get_current_user`). A URL base da API depende de como você executa o servidor (veja a secção “Como executar”).
+
+| Método | Endpoint | Autenticação | Descrição |
+|--------|----------|--------------|-----------|
+| **POST** | `/despesas/` | Sim | Cria uma nova despesa para o usuário autenticado. Body: `DespesaCreate`. O `usuario_id` é sempre forçado para o usuário logado pelo backend, ignorando qualquer valor vindo no body. |
+| **GET** | `/despesas/` | Sim | Lista despesas do usuário com filtros opcionais: `data_inicio`, `data_fim`, `categoria` e `limit` (padrão 100, máximo 500). Retorna uma lista de `DespesaInDB`. |
+| **GET** | `/despesas/{despesa_id}` | Sim | Busca uma despesa específica pelo ID, garantindo que pertença ao usuário autenticado. Retorna 404 se não existir ou se não pertencer ao usuário. |
+| **PUT** | `/despesas/{despesa_id}` | Sim | Atualiza parcialmente uma despesa existente. Body: `DespesaUpdate` (todos os campos opcionais). Apenas campos enviados são persistidos; retorna 404 se a despesa não existir ou não pertencer ao usuário. |
+| **DELETE** | `/despesas/{despesa_id}` | Sim | Deleta uma despesa do usuário autenticado. Retorna 404 se não existir ou não pertencer ao usuário. |
+
+Essas rotas usam o serviço `SupabaseService` para acessar a tabela `despesas`, aplicando sempre filtros por `usuario_id` para respeitar as políticas de RLS do Supabase.
+
 ### 6.2. Rotas de IA
 
-As rotas de IA ficam em **`backend/app/api/routes/ia.py`**, com prefixo **`/ia`**. Todas as rotas que precisam de usuário autenticado exigem o header `Authorization: Bearer <token>` (via `get_current_user`). A base da API é `http://127.0.0.1:8000` quando o backend está em execução.
+As rotas de IA ficam em **`backend/app/api/routes/ia.py`**, com prefixo **`/ia`**. Todas as rotas que precisam de usuário autenticado exigem o header `Authorization: Bearer <token>` (via `get_current_user`). A URL base da API depende de como você executa o servidor (veja a secção “Como executar”).
 
 | Método | Endpoint | Autenticação | Descrição |
 |--------|----------|---------------|-----------|
@@ -762,7 +776,7 @@ cd backend
 uv run uvicorn app.main:app --reload
 ```
 
-A API fica disponível em `http://127.0.0.1:8000`. A documentação interativa (Swagger) em `http://127.0.0.1:8000/docs`.
+Ao iniciar, o Uvicorn mostra no terminal a URL onde a API está disponível (por exemplo, `http://localhost:8000`) e a rota da documentação interativa (Swagger), normalmente em `/docs`.
 
 **Frontend (Streamlit):**
 
