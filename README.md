@@ -10,39 +10,40 @@ Antes de executar os comandos, convém saber como o projeto fica organizado:
 
 ```
 backend/
-├── main.py                     # Ponto de entrada do backend (inclui app FastAPI)
+├── main.py                       # Script simples de entrada (exemplo/CLI)
 ├── app/
 │   ├── core/
-│   │   └── config.py           # Configuração (Settings) carregada do .env
+│   │   └── config.py             # Configuração (Settings) carregada do .env
 │   ├── models/
 │   │   └── domain/
-│   │       └── despesa.py      # Modelos Pydantic de despesa (enums, Create, InDB, Update)
+│   │       └── despesa.py        # Modelos Pydantic de despesa (enums, Create, InDB, Update)
 │   ├── services/
-│   │   ├── supabase_service.py # SupabaseService: CRUD despesas, resumo mensal, por categoria, evolução
+│   │   ├── supabase_service.py   # SupabaseService: CRUD despesas, resumo mensal, por categoria, evolução
 │   │   └── ia/
-│   │       ├── config.py       # ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt
-│   │       ├── base.py         # ExtracaoDespesa e interface abstrata IAProvider (helpers de parsing)
-│   │       ├── clients.py      # ClienteFactory: criar_cliente (OpenAI/Gemini/Ollama), chamar_ollama
-│   │       ├── provider.py     # IAProvider concreto (um por tipo: openai, gemini, ollama)
-│   │       ├── factory.py      # IAProviderFactory: get_provider (singleton), listar_provedores_disponiveis/recarregar
-│   │       └── manager.py      # IAManager e EstrategiaSelecao (principal, fallback, paralelo, votacao, rapido, preciso)
+│   │       ├── config.py         # ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt
+│   │       ├── base.py           # ExtracaoDespesa e interface abstrata IAProvider (helpers de parsing)
+│   │       ├── clients.py        # ClienteFactory: criar_cliente (OpenAI/Gemini/Ollama/Claude), chamar_ollama
+│   │       ├── provider.py       # IAProvider concreto (um por tipo: openai, gemini, ollama, claude)
+│   │       ├── factory.py        # IAProviderFactory: get_provider (singleton), listar_provedores_disponiveis/recarregar
+│   │       └── manager.py        # IAManager/EstrategiaSelecao (principal, fallback, paralelo, votacao, rapido, preciso)
 │   ├── api/
-│   │   ├── deps.py             # Dependências: HTTPBearer, singletons (Supabase, IA), get_current_user
+│   │   ├── main.py               # Ponto de entrada FastAPI: cria app, CORS, inclui rotas
+│   │   ├── deps.py               # Dependências: HTTPBearer, singletons (Supabase, IA), get_current_user
 │   │   └── routes/
-│   │       ├── despesas.py     # Rotas CRUD de despesas (/despesas)
-│   │       ├── ia.py           # Rotas de IA (/ia): extração, perguntas, comparação, recarregar provedores
-│   │       └── relatorios.py   # Rotas de relatórios (/relatorios): mensal, categoria, evolução, insights
+│   │       ├── despesas.py       # Rotas CRUD de despesas (/despesas)
+│   │       ├── ia.py             # Rotas de IA (/ia): extração, perguntas, comparação, recarregar provedores
+│   │       └── relatorios.py     # Rotas de relatórios (/relatorios): mensal, categoria, evolução, insights
 │   └── __init__.py (opcional)
 └── scripts/
-    └── setup-supabase.sql      # Script SQL para criar tabelas/políticas no Supabase
+    └── setup-supabase.sql        # Script SQL para criar tabelas/políticas no Supabase
 
 tests/
-├── conftest.py                 # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
-├── test_ia_config.py           # Testes de get_config, get_prompt, categorias e prompts
-├── test_ia_base.py             # Testes do modelo ExtracaoDespesa
-├── test_ia_factory.py          # Testes da IAProviderFactory
-├── test_ia_manager.py          # Testes do IAManager e estratégias
-└── test_supabase_service.py    # Testes do SupabaseService (CRUD e agregações)
+├── conftest.py                   # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
+├── test_ia_config.py             # Testes de get_config, get_prompt, categorias e prompts
+├── test_ia_base.py               # Testes do modelo ExtracaoDespesa
+├── test_ia_factory.py            # Testes da IAProviderFactory
+├── test_ia_manager.py            # Testes do IAManager e estratégias
+└── test_supabase_service.py      # Testes do SupabaseService (CRUD e agregações)
 
 arquitetura/
 ├── Arquitetura Geral do Sistema.png
@@ -126,7 +127,7 @@ Execute **um** dos blocos abaixo, conforme seu terminal.
 ### No PowerShell (Windows)
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia/providers", "backend/app/services/ocr", "backend/app/api/routes"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes"
 ```
 
 - **New-Item** — cria novos itens no sistema de arquivos.
@@ -137,7 +138,7 @@ New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/model
 ### No Bash (Git Bash, WSL, Linux ou macOS)
 
 ```bash
-mkdir -p backend/app/{core,models/domain,services/{ia/providers,ocr},api/routes}
+mkdir -p backend/app/{core,models/domain,services/ia,api/routes}
 ```
 
 - **mkdir** — comando para criar diretórios.
@@ -148,14 +149,14 @@ mkdir -p backend/app/{core,models/domain,services/{ia/providers,ocr},api/routes}
 
 ---
 
-## Passo 3 — Criar as pastas de scripts, testes, frontend e documentação
+## Passo 3 — Criar as pastas de scripts, testes e arquitetura
 
-Crie as pastas `backend/scripts`, `tests`, `frontend/components` e `docs`.
+Crie as pastas `backend/scripts`, `tests` e `arquitetura`.
 
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "frontend/components", "docs"
+New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetura"
 ```
 
 - **New-Item -ItemType Directory** — cria pastas.
@@ -165,9 +166,7 @@ New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "frontend/
 ### No Bash
 
 ```bash
-mkdir -p backend/scripts tests
-mkdir -p frontend/components
-mkdir -p docs
+mkdir -p backend/scripts tests arquitetura
 ```
 
 - **mkdir -p** — cria as pastas e, se precisar, as pastas pai (`-p`).
@@ -177,12 +176,12 @@ mkdir -p docs
 
 ## Passo 4 — Criar toda a estrutura de pastas de uma vez (opcional)
 
-Se preferir um único comando para todas as pastas (backend + scripts, tests, frontend, docs):
+Se preferir um único comando para todas as pastas (backend + scripts, tests, arquitetura):
 
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia/providers", "backend/app/services/ocr", "backend/app/api/routes", "backend/scripts", "tests", "frontend/components", "docs"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura"
 ```
 
 ### No Bash
@@ -198,7 +197,7 @@ Crie os arquivos vazios que marcam módulos e pontos de entrada. No Bash isso co
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/main.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "frontend/streamlit_app.py", "frontend/api_client.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
+New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "backend/app/api/main.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
 ```
 
 - **New-Item** — cria novos itens (aqui, arquivos).
@@ -218,9 +217,8 @@ Para apenas atualizar a data de modificação de um arquivo (por exemplo `README
 ### No Bash
 
 ```bash
-touch backend/app/__init__.py backend/app/main.py
-touch backend/app/core/__init__.py backend/app/models/__init__.py backend/app/services/__init__.py backend/app/api/__init__.py
-touch frontend/streamlit_app.py frontend/api_client.py
+touch backend/app/__init__.py
+touch backend/app/core/__init__.py backend/app/models/__init__.py backend/app/services/__init__.py backend/app/api/__init__.py backend/app/api/main.py
 touch .env.example README.md Makefile setup.sh docker-compose.yml
 ```
 
@@ -235,13 +233,13 @@ Para referência rápida, estes dois comandos recriam toda a estrutura de pastas
 **Pastas (New-Item -ItemType Directory -Force -Path ...):**
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia/providers", "backend/app/services/ocr", "backend/app/api/routes", "backend/scripts", "tests", "frontend/components", "docs"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura"
 ```
 
 **Arquivos (New-Item -ItemType File -Force -Path ...):**
 
 ```powershell
-New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/main.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "frontend/streamlit_app.py", "frontend/api_client.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
+New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "backend/app/api/main.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
 ```
 
 ---
@@ -813,17 +811,9 @@ Na pasta `backend`, com dependências já instaladas (`uv sync`):
 
 ```powershell
 cd backend
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.api.main:app --reload
 ```
 
 Ao iniciar, o Uvicorn mostra no terminal a URL onde a API está disponível (por exemplo, `http://localhost:8000`) e a rota da documentação interativa (Swagger), normalmente em `/docs`.
-
-**Frontend (Streamlit):**
-
-Na raiz ou na pasta do frontend, com o ambiente configurado:
-
-```powershell
-streamlit run frontend/streamlit_app.py
-```
 
 **Dependências:** na pasta `backend`, use `uv sync` para instalar/atualizar o ambiente conforme o `pyproject.toml`. Para incluir dependências de desenvolvimento (pytest, ruff, etc.): `uv sync` já as inclui pelo grupo `dev` definido no projeto.
