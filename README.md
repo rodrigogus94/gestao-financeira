@@ -9,54 +9,53 @@ Este documento descreve como montar o projeto do zero, em ordem. Use-o como rote
 Antes de executar os comandos, convém saber como o projeto fica organizado:
 
 ```
-backend/app/
-├── __init__.py
-├── main.py
-├── core/
-│   ├── __init__.py
-│   └── config.py          # Configuração (Settings) carregada do .env
-├── models/
-│   ├── __init__.py
-│   └── domain/
-│       └── despesa.py     # Modelos Pydantic de despesa (enums, Create, InDB, Update)
-├── services/
-│   ├── __init__.py
-│   ├── supabase_service.py  # SupabaseService: CRUD despesas, resumo mensal, por categoria, evolução
-│   ├── ia/
-│   │   ├── config.py      # ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt
-│   │   ├── base.py        # ExtracaoDespesa e interface abstrata IAProvider (helpers de parsing)
-│   │   ├── clients.py     # ClienteFactory: criar_cliente (OpenAI/Gemini/Ollama), chamar_ollama
-│   │   ├── provider.py    # IAProvider concreto (um por tipo: openai, gemini, ollama)
-│   │   ├── factory.py    # IAProviderFactory: get_provider (singleton), listar_provedores_disponiveis
-│   │   └── manager.py    # IAManager e EstrategiaSelecao (principal, fallback, paralelo, votacao, rapido, preciso)
-│   └── ocr/
-├── api/
-│   ├── __init__.py
-│   ├── deps.py            # Dependências: HTTPBearer, singletons (Supabase, IA), get_current_user
-│   └── routes/
+backend/
+├── main.py                     # Ponto de entrada do backend (inclui app FastAPI)
+├── app/
+│   ├── core/
+│   │   └── config.py           # Configuração (Settings) carregada do .env
+│   ├── models/
+│   │   └── domain/
+│   │       └── despesa.py      # Modelos Pydantic de despesa (enums, Create, InDB, Update)
+│   ├── services/
+│   │   ├── supabase_service.py # SupabaseService: CRUD despesas, resumo mensal, por categoria, evolução
+│   │   └── ia/
+│   │       ├── config.py       # ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt
+│   │       ├── base.py         # ExtracaoDespesa e interface abstrata IAProvider (helpers de parsing)
+│   │       ├── clients.py      # ClienteFactory: criar_cliente (OpenAI/Gemini/Ollama), chamar_ollama
+│   │       ├── provider.py     # IAProvider concreto (um por tipo: openai, gemini, ollama)
+│   │       ├── factory.py      # IAProviderFactory: get_provider (singleton), listar_provedores_disponiveis/recarregar
+│   │       └── manager.py      # IAManager e EstrategiaSelecao (principal, fallback, paralelo, votacao, rapido, preciso)
+│   ├── api/
+│   │   ├── deps.py             # Dependências: HTTPBearer, singletons (Supabase, IA), get_current_user
+│   │   └── routes/
+│   │       ├── despesas.py     # Rotas CRUD de despesas (/despesas)
+│   │       └── ia.py           # Rotas de IA (/ia): extração, perguntas, comparação, recarregar provedores
+│   └── __init__.py (opcional)
 └── scripts/
+    └── setup-supabase.sql      # Script SQL para criar tabelas/políticas no Supabase
 
 tests/
-├── conftest.py            # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
-├── test_ia_config.py       # Testes de get_config, get_prompt, categorias e prompts
-├── test_ia_base.py         # Testes do modelo ExtracaoDespesa
-├── test_ia_factory.py      # Testes da IAProviderFactory
-└── test_ia_manager.py      # Testes do IAManager e estratégias
+├── conftest.py                 # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
+├── test_ia_config.py           # Testes de get_config, get_prompt, categorias e prompts
+├── test_ia_base.py             # Testes do modelo ExtracaoDespesa
+├── test_ia_factory.py          # Testes da IAProviderFactory
+├── test_ia_manager.py          # Testes do IAManager e estratégias
+└── test_supabase_service.py    # Testes do SupabaseService (CRUD e agregações)
 
-frontend/
-├── streamlit_app.py
-├── api_client.py
-└── components/
+arquitetura/
+├── Arquitetura Geral do Sistema.png
+├── Estrutura de Dados.png
+├── Fluxo de Dados no Sistema.png
+└── Fluxo de Processamento Multi-IA.png
 
-docs/
-.env.example  Makefile  setup.sh  docker-compose.yml
+.env.example  README.md  Makefile  setup.sh  docker-compose.yml  backend/pyproject.toml
 ```
 
-- **backend/app** — aplicação principal (core, modelos, serviços, API).
-- **frontend** — interface (Streamlit) e cliente da API.
-- **tests** — testes automatizados.
-- **docs** — documentação adicional.
-- **Raiz** — configuração (ambiente, Makefile, setup, Docker).
+- **backend/** — código da aplicação backend (núcleo, modelos, serviços, API e scripts).
+- **tests/** — testes automatizados de IA e de acesso ao Supabase.
+- **arquitetura/** — diagramas de arquitetura, fluxo de dados e estrutura de dados.
+- **Raiz** — arquivos de configuração (ambiente, Makefile, setup, Docker, pyproject do backend).
 
 ---
 
