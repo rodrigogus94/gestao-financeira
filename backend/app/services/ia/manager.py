@@ -10,14 +10,15 @@ por votação (valor médio, categoria mais votada) (VOTACAO). O método princip
 _executar_paralelo, _executar_fallback ou _executar_votacao conforme a estratégia.
 """
 
-from enum import Enum
-from typing import Dict, Optional, List
-from .factory import IAProviderFactory
-from .base import ExtracaoDespesa
-from collections import Counter
-from app.core.config import settings
-import logging
 import asyncio
+import logging
+from collections import Counter
+from enum import Enum
+
+from app.core.config import settings
+
+from .base import ExtracaoDespesa
+from .factory import IAProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,12 @@ class EstrategiaSelecao(str, Enum):
     - PRINCIPAL: usa o provider_default (ou o padrão de settings).
     - RAPIDO: força uso do Ollama (geralmente local, mais rápido).
     - PRECISO: força uso do OpenAI (modelos em nuvem, em geral mais precisos).
-    - FALLBACK: tenta provider_default, depois FALLBACK_IA_PROVIDER, depois openai, gemini, ollama em ordem até um suceder.
-    - PARALELO: dispara extração em todos os provedores em paralelo e retorna o resultado com maior confiança.
-    - VOTACAO: dispara em todos, calcula valor médio e categoria mais votada e retorna um único ExtracaoDespesa agregado.
+    - FALLBACK: tenta provider_default, depois FALLBACK_IA_PROVIDER, depois openai,
+      gemini, ollama em ordem até um suceder.
+    - PARALELO: dispara extração em todos os provedores em paralelo e retorna o
+      resultado com maior confiança.
+    - VOTACAO: dispara em todos, calcula valor médio e categoria mais votada e
+      retorna um único ExtracaoDespesa agregado.
     """
 
     PRINCIPAL = "principal"
@@ -70,7 +74,8 @@ class IAManager:
         Inicializa o gerenciador com a estratégia de seleção e listas de provedores.
 
         Args:
-            estrategia: Como escolher ou agregar provedores (principal, rapido, preciso, fallback, paralelo, votacao).
+            estrategia: Como escolher ou agregar provedores (principal, rapido,
+                preciso, fallback, paralelo, votacao).
         """
         self.estrategia = estrategia
         # Provedores considerados rápidos (ex.: Ollama local) e precisos (ex.: OpenAI, Gemini).
@@ -78,7 +83,7 @@ class IAManager:
         self.provedores_precisos = ["openai", "gemini", "claude"]
 
     async def extrair_despesa(
-        self, texto: str, provider_default: Optional[str] = None
+        self, texto: str, provider_default: str | None = None
     ) -> ExtracaoDespesa:
         """
         Extrai uma despesa do texto usando a estratégia configurada.
@@ -92,7 +97,8 @@ class IAManager:
 
         Args:
             texto: Texto natural descrevendo a despesa.
-            provider_default: Provedor preferido (usado em PRINCIPAL e na ordem de tentativa do FALLBACK).
+            provider_default: Provedor preferido (usado em PRINCIPAL e na ordem de
+                tentativa do FALLBACK).
 
         Returns:
             ExtracaoDespesa resultante.
@@ -101,26 +107,50 @@ class IAManager:
             provider = IAProviderFactory.get_provider(provider_default)
             return await provider.extrair_despesa(texto)
 
-        elif self.estrategia == EstrategiaSelecao.RAPIDO:
+        if self.estrategia == EstrategiaSelecao.RAPIDO:
             provider = IAProviderFactory.get_provider("ollama")
             return await provider.extrair_despesa(texto)
 
-        elif self.estrategia == EstrategiaSelecao.PRECISO:
+        if self.estrategia == EstrategiaSelecao.PRECISO:
             provider = IAProviderFactory.get_provider("openai")
             return await provider.extrair_despesa(texto)
 
-        elif self.estrategia == EstrategiaSelecao.VOTACAO:
+        if self.estrategia == EstrategiaSelecao.VOTACAO:
             return await self._executar_votacao(texto)
 
-        elif self.estrategia == EstrategiaSelecao.PARALELO:
+        if self.estrategia == EstrategiaSelecao.PARALELO:
             return await self._executar_paralelo(texto)
 
-        elif self.estrategia == EstrategiaSelecao.FALLBACK:
+        if self.estrategia == EstrategiaSelecao.FALLBACK:
             return await self._executar_fallback(texto, provider_default)
 
-        else:
-            provider = IAProviderFactory.get_provider(provider_default)
-            return await provider.extrair_despesa(texto)
+        # Qualquer valor inesperado de estratégia cai no comportamento padrão (PRINCIPAL).
+        provider = IAProviderFactory.get_provider(provider_default)
+        return await provider.extrair_despesa(texto)
+
+    async def gerar_insights(
+        self,
+        resumo_mensal: dict,
+        provedor: str | None = None,
+    ) -> str:
+        """
+        Gera um texto de insights a partir de um resumo mensal de despesas.
+
+        Usa o método `gerar_relatorio(dados)` do IAProvider, que por sua vez
+        utiliza o prompt "gerar_relatorio" definido em `config.py`. O dicionário
+        `resumo_mensal` deve ser o retorno de `SupabaseService.get_resumo_mensal`,
+        contendo chaves como total, categorias, quantidade, media_por_dia e periodo.
+
+        Args:
+            resumo_mensal: Dict com o resumo numérico das despesas no período.
+            provedor: Tipo de provedor de IA a usar ("openai", "gemini", "ollama", etc.).
+                Se None, usa o DEFAULT_IA_PROVIDER das configurações.
+
+        Returns:
+            Texto com insights e sugestões sobre os gastos do período.
+        """
+        provider = IAProviderFactory.get_provider(provedor)
+        return await provider.gerar_relatorio(resumo_mensal)
 
     async def _executar_paralelo(self, texto: str) -> ExtracaoDespesa:
         """
@@ -146,7 +176,7 @@ class IAManager:
         return max(sucessos, key=lambda x: x.confianca)
 
     async def _executar_fallback(
-        self, texto: str, provider_default: Optional[str] = None
+        self, texto: str, provider_default: str | None = None
     ) -> ExtracaoDespesa:
         """
         Tenta extrair a despesa com vários provedores em ordem até um suceder.
@@ -156,7 +186,7 @@ class IAManager:
         tipo, get_provider(tipo) e extrair_despesa(texto); na primeira resposta
         sem exceção, retorna. Se todos falharem, levanta exceção.
         """
-        tentativas: List[str] = []
+        tentativas: list[str] = []
         if provider_default:
             tentativas.append(provider_default)
         if hasattr(settings, "FALLBACK_IA_PROVIDER") and settings.FALLBACK_IA_PROVIDER:
@@ -180,7 +210,7 @@ class IAManager:
         a mais frequente (Counter.most_common(1)). Data e descrição vêm do
         primeiro resultado; provedor é "Votação (N provedores)" e confianca 0.95.
         """
-        resultados: List[ExtracaoDespesa] = []
+        resultados: list[ExtracaoDespesa] = []
         for tipo in ["openai", "gemini", "ollama", "claude"]:
             try:
                 provider = IAProviderFactory.get_provider(tipo)
@@ -202,3 +232,11 @@ class IAManager:
             provedor=f"Votação ({len(resultados)} provedores)",
             confianca=0.95,
         )
+
+
+# -----------------------------------------------------------------------------
+# Compatibilidade
+# -----------------------------------------------------------------------------
+# Parte do código (rotas/deps) usa o nome IAProviderManager. Mantemos um alias
+# para evitar que imports existentes quebrem.
+IAProviderManager = IAManager

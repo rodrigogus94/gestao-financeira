@@ -8,11 +8,10 @@ Centraliza as dependências injetáveis usadas nas rotas FastAPI:
 """
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
-from app.services.supabase_service import SupabaseService
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from app.services.ia.manager import IAProviderManager
-from app.services.ia.factory import IAProviderFactory
-from typing import Optional
+from app.services.supabase_service import SupabaseService
 
 # ---------------------------------------------------------------------------
 # Esquema de segurança HTTP Bearer

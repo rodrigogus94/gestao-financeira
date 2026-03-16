@@ -30,7 +30,8 @@ backend/
 │   │   ├── deps.py             # Dependências: HTTPBearer, singletons (Supabase, IA), get_current_user
 │   │   └── routes/
 │   │       ├── despesas.py     # Rotas CRUD de despesas (/despesas)
-│   │       └── ia.py           # Rotas de IA (/ia): extração, perguntas, comparação, recarregar provedores
+│   │       ├── ia.py           # Rotas de IA (/ia): extração, perguntas, comparação, recarregar provedores
+│   │       └── relatorios.py   # Rotas de relatórios (/relatorios): mensal, categoria, evolução, insights
 │   └── __init__.py (opcional)
 └── scripts/
     └── setup-supabase.sql      # Script SQL para criar tabelas/políticas no Supabase
@@ -56,6 +57,31 @@ arquitetura/
 - **tests/** — testes automatizados de IA e de acesso ao Supabase.
 - **arquitetura/** — diagramas de arquitetura, fluxo de dados e estrutura de dados.
 - **Raiz** — arquivos de configuração (ambiente, Makefile, setup, Docker, pyproject do backend).
+
+### Fluxo geral do sistema (resumo textual)
+
+1. **Entrada do usuário (frontend ou cliente HTTP)**  
+   - O usuário registra despesas manualmente ou envia textos/consultas para IA.  
+   - As requisições HTTP chegam à API FastAPI (`main.py`), que roteia para:
+     - Rotas de **despesas** (`/despesas`) para CRUD direto.
+     - Rotas de **IA** (`/ia`) para extrair despesas de texto ou fazer perguntas com contexto financeiro.
+     - Rotas de **relatórios** (`/relatorios`) para resumos mensais, por categoria, evolução e insights.
+
+2. **Camada de serviços e persistência**  
+   - As rotas usam o `SupabaseService` para ler/escrever na tabela `despesas` (e relatórios derivados), sempre filtrando por `usuario_id` (RLS no Supabase).  
+   - Resumos e agregações (mensal, por categoria, evolução) são montados nessa camada e devolvidos para a API.
+
+3. **Camada de IA (multi-provedor)**  
+   - Para extração de despesas e geração de insights, as rotas chamam o `IAProviderManager`, que usa:
+     - `IAProviderFactory` para obter o provedor (`openai`, `gemini`, `ollama`, etc.).
+     - `IAProvider` para executar prompts de extração, classificação, relatório e perguntas.  
+   - Estratégias como principal, rápido, preciso, fallback, paralelo e votação são usadas para combinar ou escolher resultados entre provedores.
+
+4. **Resposta ao cliente**  
+   - A API retorna objetos estruturados (Pydantic) com:
+     - Despesas individuais ou listas (`DespesaInDB`).
+     - Resumos e relatórios numéricos (mensal, categoria, evolução).
+     - Textos de insights e respostas da IA, sempre baseados nos dados do usuário autenticado.
 
 ---
 
@@ -741,6 +767,21 @@ As rotas de IA ficam em **`backend/app/api/routes/ia.py`**, com prefixo **`/ia`*
 **Exemplos de texto para extração:** `"Gastei 50 reais com almoço hoje"`, `"Uber 25 reais ontem"`, `"Comprei 100 reais de alimentos na mercearia"`, `"Paguei 150 reais de aluguel do mês"`.
 
 **Schemas de request/response:** `TextoRequest` / `TextoResponse` (extração), `PerguntaRequest` (perguntar), `ComparacaoResponse` (comparar). A documentação interativa (Swagger) em `/docs` exibe esses modelos e permite testar os endpoints.
+
+---
+
+### 6.3. Rotas de relatórios
+
+As rotas de relatórios ficam em **`backend/app/api/routes/relatorios.py`**, com prefixo **`/relatorios`**. Todas usam `get_current_user` para filtrar os dados pelo `usuario_id` e o `SupabaseService` para acessar o banco. Algumas também utilizam `IAProviderManager` para gerar insights com IA.
+
+| Método | Endpoint | Autenticação | Descrição |
+|--------|----------|--------------|-----------|
+| **GET** | `/relatorios/mensal` | Sim | Gera um resumo mensal de despesas do usuário para o ano/mês informados. Usa `get_resumo_mensal(usuario_id, ano, mes)` para calcular total, totais por categoria, quantidade, média por dia, maior despesa e período. |
+| **GET** | `/relatorios/categoria` | Sim | Gera um relatório de gastos por categoria em um intervalo de datas (`data_inicio`, `data_fim`). Usa `get_despesas_por_categoria(usuario_id, data_inicio, data_fim)` e retorna um dict `categoria -> total`. |
+| **GET** | `/relatorios/evolucao/{ano}` | Sim | Retorna a evolução mensal dos gastos ao longo de um ano. Usa `get_evolucao_mensal(usuario_id, ano, mes=1)` para montar uma lista de 12 itens, cada um com `mes` e `total`. |
+| **POST** | `/relatorios/insights` | Sim | Gera insights em linguagem natural sobre os gastos de um determinado mês (`ano`, `mes`). Calcula o resumo mensal e, se houver despesas, chama `IAManager.gerar_insights(resumo, provedor="openai")`, retornando texto com insights, o período e o resumo usado como contexto. |
+
+Essas rotas complementam as de despesas e IA, oferecendo visão agregada (resumo, por categoria, evolução) e uma camada de interpretação automática com IA.
 
 ---
 
