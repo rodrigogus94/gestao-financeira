@@ -411,3 +411,4 @@ class TestEvolucaoMensal:
         for i, item in enumerate(resultado):
             assert item["mes"] == i + 1
             assert "total" in item
+

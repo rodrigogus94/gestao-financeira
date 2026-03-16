@@ -785,9 +785,21 @@ Essas rotas complementam as de despesas e IA, oferecendo visão agregada (resumo
 
 ## Testes
 
-Os testes ficam na pasta **`tests/`** na raiz do repositório. O `conftest.py` define variáveis de ambiente mínimas (SUPABASE_*) para o Settings carregar sem `.env` e oferece as fixtures `extracao_exemplo` e `texto_despesa`. Os módulos `test_ia_config.py`, `test_ia_base.py`, `test_ia_factory.py` e `test_ia_manager.py` cobrem config, modelo ExtracaoDespesa, factory e manager (com mocks nos provedores).
+Os testes ficam na pasta **`tests/`** na raiz do repositório. O `conftest.py` define variáveis de ambiente mínimas (SUPABASE_*) para o Settings carregar sem `.env` e oferece as fixtures de exemplo. A estrutura foi organizada para espelhar as partes do backend:
 
-**Executar os testes** (a partir da pasta `backend`, para o `pythonpath` e `testpaths` do pyproject.toml):
+- **tests/services/ia/** — testes da camada de IA:
+  - `test_ia_config.py` — cobre `app.services.ia.config` (ProviderConfig, PROVIDER_CONFIGS, PROMPT, get_config, get_prompt).
+  - `test_ia_base.py` — cobre `app.services.ia.base` (modelo `ExtracaoDespesa` e validações).
+  - `test_ia_factory.py` — cobre `app.services.ia.factory` (IAProviderFactory, singleton, listar_provedores_disponiveis).
+  - `test_ia_manager.py` — cobre `app.services.ia.manager` (IAManager, EstrategiaSelecao, paralela/fallback/votação).
+- **tests/services/supabase/** — testes da camada de acesso a dados:
+  - `test_supabase_service.py` — cobre `app.services.supabase_service` (CRUD e relatórios agregados).
+- **tests/api/routes/** — testes de rotas FastAPI:
+  - `test_despesas_routes.py` — testa o fluxo das rotas `/api/despesas` usando um serviço Supabase fake em memória.
+  - `test_relatorios_routes.py` — testa as rotas `/api/relatorios` com fakes para Supabase e IAProviderManager.
+  - `test_ia_routes.py` — testa as rotas `/api/ia` (provedores, extrair despesa, perguntar, comparar) com fakes/mocks de IA e Supabase.
+
+**Executar todos os testes** (a partir da pasta `backend`, para o `pythonpath` e `testpaths` do pyproject.toml):
 
 ```powershell
 cd backend
@@ -799,6 +811,29 @@ Ou com saída resumida:
 ```powershell
 cd backend
 uv run pytest ../tests -v --tb=short
+```
+
+**Executar apenas uma parte dos testes**:
+
+- **Somente serviços de IA**:
+
+```powershell
+cd backend
+uv run pytest ../tests/services/ia -v
+```
+
+- **Somente serviço Supabase**:
+
+```powershell
+cd backend
+uv run pytest ../tests/services/supabase -v
+```
+
+- **Somente testes de rotas (API)**:
+
+```powershell
+cd backend
+uv run pytest ../tests/api/routes -v
 ```
 
 ---

@@ -174,6 +174,7 @@ class TestIAManagerVotacao:
         diferentes, o resultado agregado deve ter categoria entre as usadas
         e valor numérico coerente (média), e provedor deve conter "Vota".
         """
+
         def provider_side_effect(tipo: str) -> MagicMock:
             m = MagicMock()
             cat = "transporte" if tipo == "ollama" else "alimentacao"
@@ -206,3 +207,4 @@ class TestIAManagerVotacao:
         manager = IAManager(estrategia=EstrategiaSelecao.VOTACAO)
         with pytest.raises(Exception, match="Sem resultados"):
             await manager._executar_votacao("Qualquer texto")
+

@@ -86,3 +86,4 @@ class TestIAProviderFactory:
             assert "nome" in item
             assert "tipo" in item
             assert "status" in item
+

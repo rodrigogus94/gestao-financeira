@@ -85,3 +85,4 @@ class TestExtracaoDespesa:
                 provedor="x",
                 confianca=1.5,
             )
+

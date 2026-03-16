@@ -150,3 +150,4 @@ class TestCategoriasEProviders:
         assert "openai" in PROVIDER_CONFIGS
         assert "gemini" in PROVIDER_CONFIGS
         assert "ollama" in PROVIDER_CONFIGS
+
