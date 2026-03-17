@@ -168,14 +168,14 @@ mkdir -p backend/app/{core,models/domain,services/ia,api/routes}
 
 ---
 
-## Passo 3 — Criar as pastas de scripts, testes e arquitetura
+## Passo 3 — Criar as pastas de scripts, testes, arquitetura e frontend
 
-Crie as pastas `backend/scripts`, `tests` e `arquitetura`.
+Crie as pastas `backend/scripts`, `tests`, `arquitetura` e `frontend/components`.
 
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetura"
+New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetura", "frontend/components"
 ```
 
 - **New-Item -ItemType Directory** — cria pastas.
@@ -186,6 +186,7 @@ New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetu
 
 ```bash
 mkdir -p backend/scripts tests arquitetura
+mkdir -p frontend/components
 ```
 
 - **mkdir -p** — cria as pastas e, se precisar, as pastas pai (`-p`).
@@ -195,12 +196,12 @@ mkdir -p backend/scripts tests arquitetura
 
 ## Passo 4 — Criar toda a estrutura de pastas de uma vez (opcional)
 
-Se preferir um único comando para todas as pastas (backend + scripts, tests, arquitetura):
+Se preferir um único comando para todas as pastas (backend + scripts, tests, arquitetura, frontend):
 
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura", "frontend/components"
 ```
 
 ### No Bash
@@ -216,7 +217,7 @@ Crie os arquivos vazios que marcam módulos e pontos de entrada. No Bash isso co
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "backend/app/api/main.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
+New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "backend/app/api/main.py", "frontend/streamlit_app.py", "frontend/api_client.py", "frontend/components/__init__.py", "frontend/components/ia_selector.py", "frontend/components/dashboard.py", "frontend/components/chat.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
 ```
 
 - **New-Item** — cria novos itens (aqui, arquivos).
@@ -238,6 +239,8 @@ Para apenas atualizar a data de modificação de um arquivo (por exemplo `README
 ```bash
 touch backend/app/__init__.py
 touch backend/app/core/__init__.py backend/app/models/__init__.py backend/app/services/__init__.py backend/app/api/__init__.py backend/app/api/main.py
+touch frontend/streamlit_app.py frontend/api_client.py
+touch frontend/components/__init__.py frontend/components/ia_selector.py frontend/components/dashboard.py frontend/components/chat.py
 touch .env.example README.md Makefile setup.sh docker-compose.yml
 ```
 
@@ -252,13 +255,13 @@ Para referência rápida, estes dois comandos recriam toda a estrutura de pastas
 **Pastas (New-Item -ItemType Directory -Force -Path ...):**
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura", "frontend/components"
 ```
 
 **Arquivos (New-Item -ItemType File -Force -Path ...):**
 
 ```powershell
-New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "backend/app/api/main.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
+New-Item -ItemType File -Force -Path "backend/app/__init__.py", "backend/app/core/__init__.py", "backend/app/models/__init__.py", "backend/app/services/__init__.py", "backend/app/api/__init__.py", "backend/app/api/main.py", "frontend/streamlit_app.py", "frontend/api_client.py", "frontend/components/__init__.py", "frontend/components/ia_selector.py", "frontend/components/dashboard.py", "frontend/components/chat.py", ".env.example", "Makefile", "setup.sh", "docker-compose.yml"
 ```
 
 ---
@@ -686,7 +689,7 @@ uv add anthropic
 
 - Defina no `.env` a API key e o modelo do novo provedor.
 - Use **DEFAULT_IA_PROVIDER** ou **provider_default** com o novo identificador e chame um endpoint que use extração de despesa (ou rode um script que use `IAProviderFactory.get_provider("claude")` e `extrair_despesa(texto)`).
-- Opcional: adicione testes em **tests/** para o novo tipo (ex.: em `test_ia_config.py` um `test_get_config_claude`; em `test_ia_factory.py` garantir que `get_provider("claude")` seja chamado corretamente com mocks).
+- Opcional: adicione testes em **`tests/services/ia/`** para o novo tipo (ex.: em `tests/services/ia/test_ia_config.py` um `test_get_config_claude`; em `tests/services/ia/test_ia_factory.py` garantir que `get_provider("claude")` seja chamado corretamente com mocks).
 
 **Resumo dos arquivos a alterar:**
 
