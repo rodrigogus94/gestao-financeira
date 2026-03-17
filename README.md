@@ -39,11 +39,19 @@ backend/
 
 tests/
 ├── conftest.py                   # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
-├── test_ia_config.py             # Testes de get_config, get_prompt, categorias e prompts
-├── test_ia_base.py               # Testes do modelo ExtracaoDespesa
-├── test_ia_factory.py            # Testes da IAProviderFactory
-├── test_ia_manager.py            # Testes do IAManager e estratégias
-└── test_supabase_service.py      # Testes do SupabaseService (CRUD e agregações)
+├── services/
+│   ├── ia/
+│   │   ├── test_ia_config.py     # app.services.ia.config
+│   │   ├── test_ia_base.py       # app.services.ia.base (ExtracaoDespesa)
+│   │   ├── test_ia_factory.py    # app.services.ia.factory
+│   │   └── test_ia_manager.py    # app.services.ia.manager
+│   └── supabase/
+│       └── test_supabase_service.py # app.services.supabase_service
+└── api/
+    └── routes/
+        ├── test_despesas_routes.py   # Testes das rotas /api/despesas
+        ├── test_ia_routes.py         # Testes das rotas /api/ia
+        └── test_relatorios_routes.py # Testes das rotas /api/relatorios
 
 arquitetura/
 ├── Arquitetura Geral do Sistema.png
@@ -51,11 +59,22 @@ arquitetura/
 ├── Fluxo de Dados no Sistema.png
 └── Fluxo de Processamento Multi-IA.png
 
+frontend/
+├── pyproject.toml                # Dependências do frontend (Streamlit)
+├── streamlit_app.py              # App principal Streamlit
+├── api_client.py                 # Cliente HTTP para conversar com o backend
+└── components/
+    ├── __init__.py
+    ├── ia_selector.py            # Seletor de provedor/estratégia de IA (UI)
+    ├── dashboard.py              # Visualizações (gráficos, resumos)
+    └── chat.py                   # Chat/perguntas para IA (UI)
+
 .env.example  README.md  Makefile  setup.sh  docker-compose.yml  backend/pyproject.toml
 ```
 
 - **backend/** — código da aplicação backend (núcleo, modelos, serviços, API e scripts).
-- **tests/** — testes automatizados de IA e de acesso ao Supabase.
+- **frontend/** — aplicação Streamlit (interface do usuário) e componentes.
+- **tests/** — testes automatizados (serviços e rotas).
 - **arquitetura/** — diagramas de arquitetura, fluxo de dados e estrutura de dados.
 - **Raiz** — arquivos de configuração (ambiente, Makefile, setup, Docker, pyproject do backend).
 
@@ -780,6 +799,85 @@ As rotas de relatórios ficam em **`backend/app/api/routes/relatorios.py`**, com
 | **POST** | `/relatorios/insights` | Sim | Gera insights em linguagem natural sobre os gastos de um determinado mês (`ano`, `mes`). Calcula o resumo mensal e, se houver despesas, chama `IAManager.gerar_insights(resumo, provedor="openai")`, retornando texto com insights, o período e o resumo usado como contexto. |
 
 Essas rotas complementam as de despesas e IA, oferecendo visão agregada (resumo, por categoria, evolução) e uma camada de interpretação automática com IA.
+
+---
+
+## 7. Frontend (Streamlit)
+
+O frontend é uma aplicação **Streamlit** localizada em `frontend/`. Ele é responsável por:
+
+- Enviar requisições HTTP para a API FastAPI (rotas `/api/despesas`, `/api/ia`, `/api/relatorios`).
+- Exibir dashboard com gráficos e resumos.
+- Permitir selecionar provedor/estratégia de IA e interagir via chat/perguntas.
+
+### 7.1 Configuração do Frontend
+
+O frontend tem seu próprio `pyproject.toml` em `frontend/` com as dependências (Streamlit, requests, pandas, plotly, python-dotenv).
+
+**Criar a estrutura de pastas/arquivos do frontend**
+
+Se você estiver montando o frontend do zero, a estrutura mínima sugerida é:
+
+```
+frontend/
+├── pyproject.toml
+├── streamlit_app.py
+├── api_client.py
+└── components/
+    ├── __init__.py
+    ├── ia_selector.py
+    ├── dashboard.py
+    └── chat.py
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# Dentro da raiz do projeto (onde existe backend/, tests/, etc.)
+New-Item -ItemType Directory -Force -Path "frontend", "frontend/components"
+
+New-Item -ItemType File -Force -Path `
+  "frontend/streamlit_app.py", `
+  "frontend/api_client.py", `
+  "frontend/components/__init__.py", `
+  "frontend/components/ia_selector.py", `
+  "frontend/components/dashboard.py", `
+  "frontend/components/chat.py"
+```
+
+**Linux/macOS (Bash):**
+
+```bash
+# Dentro da raiz do projeto
+mkdir -p frontend/components
+
+touch frontend/streamlit_app.py frontend/api_client.py
+touch frontend/components/__init__.py frontend/components/ia_selector.py frontend/components/dashboard.py frontend/components/chat.py
+```
+
+**Instalar dependências (PowerShell):**
+
+```powershell
+cd frontend
+uv sync
+```
+
+**Executar o Streamlit (PowerShell):**
+
+```powershell
+cd frontend
+uv run streamlit run streamlit_app.py
+```
+
+**Executar o Streamlit (Linux/macOS):**
+
+```bash
+cd frontend
+uv sync
+uv run streamlit run streamlit_app.py
+```
+
+**Observação (API)**: o arquivo `frontend/api_client.py` é onde você centraliza a URL base do backend e as chamadas HTTP. Se você usar `.env`, o `python-dotenv` pode carregar variáveis como `API_BASE_URL` (por exemplo, `http://localhost:8000/api`).
 
 ---
 
