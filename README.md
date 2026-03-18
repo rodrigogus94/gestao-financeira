@@ -59,6 +59,9 @@ arquitetura/
 ├── Fluxo de Dados no Sistema.png
 └── Fluxo de Processamento Multi-IA.png
 
+docs/
+└── (opcional)                    # Documentação complementar (anotações, imagens, etc.)
+
 frontend/
 ├── pyproject.toml                # Dependências do frontend (Streamlit)
 ├── streamlit_app.py              # App principal Streamlit
@@ -76,13 +79,14 @@ frontend/
 - **frontend/** — aplicação Streamlit (interface do usuário) e componentes.
 - **tests/** — testes automatizados (serviços e rotas).
 - **arquitetura/** — diagramas de arquitetura, fluxo de dados e estrutura de dados.
+- **docs/** — documentação complementar do projeto (opcional).
 - **Raiz** — arquivos de configuração (ambiente, Makefile, setup, Docker, pyproject do backend).
 
 ### Fluxo geral do sistema (resumo textual)
 
 1. **Entrada do usuário (frontend ou cliente HTTP)**  
    - O usuário registra despesas manualmente ou envia textos/consultas para IA.  
-   - As requisições HTTP chegam à API FastAPI (`main.py`), que roteia para:
+   - As requisições HTTP chegam à API FastAPI (`backend/app/api/main.py`), que roteia para:
      - Rotas de **despesas** (`/despesas`) para CRUD direto.
      - Rotas de **IA** (`/ia`) para extrair despesas de texto ou fazer perguntas com contexto financeiro.
      - Rotas de **relatórios** (`/relatorios`) para resumos mensais, por categoria, evolução e insights.
@@ -168,14 +172,14 @@ mkdir -p backend/app/{core,models/domain,services/ia,api/routes}
 
 ---
 
-## Passo 3 — Criar as pastas de scripts, testes, arquitetura e frontend
+## Passo 3 — Criar as pastas de scripts, testes, arquitetura, docs e frontend
 
-Crie as pastas `backend/scripts`, `tests`, `arquitetura` e `frontend/components`.
+Crie as pastas `backend/scripts`, `tests`, `arquitetura`, `docs` e `frontend/components`.
 
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetura", "frontend/components"
+New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetura", "docs", "frontend/components"
 ```
 
 - **New-Item -ItemType Directory** — cria pastas.
@@ -186,6 +190,7 @@ New-Item -ItemType Directory -Force -Path "backend/scripts", "tests", "arquitetu
 
 ```bash
 mkdir -p backend/scripts tests arquitetura
+mkdir -p docs
 mkdir -p frontend/components
 ```
 
@@ -196,12 +201,12 @@ mkdir -p frontend/components
 
 ## Passo 4 — Criar toda a estrutura de pastas de uma vez (opcional)
 
-Se preferir um único comando para todas as pastas (backend + scripts, tests, arquitetura, frontend):
+Se preferir um único comando para todas as pastas (backend + scripts, tests, arquitetura, docs, frontend):
 
 ### No PowerShell
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura", "frontend/components"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura", "docs", "frontend/components"
 ```
 
 ### No Bash
@@ -255,7 +260,7 @@ Para referência rápida, estes dois comandos recriam toda a estrutura de pastas
 **Pastas (New-Item -ItemType Directory -Force -Path ...):**
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura", "frontend/components"
+New-Item -ItemType Directory -Force -Path "backend/app/core", "backend/app/models/domain", "backend/app/services/ia", "backend/app/api/routes", "backend/scripts", "tests", "arquitetura", "docs", "frontend/components"
 ```
 
 **Arquivos (New-Item -ItemType File -Force -Path ...):**
