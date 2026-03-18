@@ -14,7 +14,7 @@ Todas as consultas são sempre filtradas pelo `usuario_id` obtido via
 from datetime import date
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from app.api.deps import get_current_user, get_ia_provider_manager, get_supabase_service
 from app.services.ia.manager import IAProviderManager
@@ -82,7 +82,7 @@ async def gastos_por_categoria(
 
 @router.get("/evolucao/{ano}")
 async def evolucao_mensal(
-    ano: int = Query(..., description="Ano do relatório", ge=2020, le=2030),
+    ano: int = Path(..., description="Ano do relatório", ge=2020, le=2030),
     usuario_id: str = Depends(get_current_user),
     supabase: SupabaseService = Depends(get_supabase_service),
 ):

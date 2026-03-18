@@ -30,6 +30,27 @@ class IAProviderFactory:
     _instance: Dict[str, IAProvider] = {}
 
     @classmethod
+    def _get_provider_no_fallback(cls, tipo: str) -> IAProvider:
+        """
+        Obtém a instância do provider para o tipo informado, sem aplicar fallback.
+
+        Esse método existe especificamente para o endpoint de status/listagem de provedores:
+        queremos saber se `openai`, `gemini` ou `claude` falharam na inicialização,
+        e então marcá-los como "indisponivel" (em vez de substituir por "ollama").
+        """
+        if tipo not in PROVIDER_CONFIGS:
+            raise ValueError(
+                f"Provider de IA '{tipo}' não encontrado em PROVIDER_CONFIGS."
+            )
+
+        if tipo not in cls._instance:
+            # Se a inicialização falhar, propagamos a exceção para que a listagem
+            # consiga marcar como indisponivel o provedor solicitado.
+            cls._instance[tipo] = IAProvider(tipo)
+
+        return cls._instance[tipo]
+
+    @classmethod
     def get_provider(cls, tipo: Optional[str] = None) -> IAProvider:
         """
         Retorna o provedor de IA para o tipo informado (ou o padrão se tipo for None).
@@ -83,7 +104,9 @@ class IAProviderFactory:
         disponiveis = []
         for tipo in PROVIDER_CONFIGS.keys():
             try:
-                provider = cls.get_provider(tipo)
+                # Importante: sem fallback. Assim, se openai/gemini/claude
+                # falharem ao inicializar, o status reflete isso corretamente.
+                provider = cls._get_provider_no_fallback(tipo)
                 disponiveis.append({
                     "nome": provider.nome,
                     "tipo": provider.tipo,

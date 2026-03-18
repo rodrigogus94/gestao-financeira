@@ -255,10 +255,17 @@ with tab3:
         )
     
     with col2:
+        # O parâmetro `index` do selectbox é a POSIÇÃO (0..N-1), não o valor do ano.
+        # Como as opções começam em 2020, o índice do ano atual é (ano_atual - 2020).
+        ano_atual = datetime.now().year
+        ano_inicial = 2020
+        opcoes_anos = list(range(ano_inicial, ano_atual + 1))
+        index_ano = max(0, min(len(opcoes_anos) - 1, ano_atual - ano_inicial))
+
         ano = st.selectbox(
             "Ano:",
-            range(2020, datetime.now().year + 1),
-            index = datetime.now().year,
+            opcoes_anos,
+            index=index_ano,
             key = "ano_dashboard"
         )
     

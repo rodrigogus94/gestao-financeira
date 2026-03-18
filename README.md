@@ -805,7 +805,7 @@ As rotas de relatórios ficam em **`backend/app/api/routes/relatorios.py`**, com
 |--------|----------|--------------|-----------|
 | **GET** | `/relatorios/mensal` | Sim | Gera um resumo mensal de despesas do usuário para o ano/mês informados. Usa `get_resumo_mensal(usuario_id, ano, mes)` para calcular total, totais por categoria, quantidade, média por dia, maior despesa e período. |
 | **GET** | `/relatorios/categoria` | Sim | Gera um relatório de gastos por categoria em um intervalo de datas (`data_inicio`, `data_fim`). Usa `get_despesas_por_categoria(usuario_id, data_inicio, data_fim)` e retorna um dict `categoria -> total`. |
-| **GET** | `/relatorios/evolucao/{ano}` | Sim | Retorna a evolução mensal dos gastos ao longo de um ano. Usa `get_evolucao_mensal(usuario_id, ano, mes=1)` para montar uma lista de 12 itens, cada um com `mes` e `total`. |
+| **GET** | `/relatorios/evolucao/{ano}` | Sim | Retorna a evolução mensal dos gastos ao longo de um ano. `ano` é parâmetro de **path** (ex.: `/relatorios/evolucao/2026`). Usa `get_evolucao_mensal(usuario_id, ano, mes=1)` para montar uma lista de 12 itens, cada um com `mes` e `total`. |
 | **POST** | `/relatorios/insights` | Sim | Gera insights em linguagem natural sobre os gastos de um determinado mês (`ano`, `mes`). Calcula o resumo mensal e, se houver despesas, chama `IAManager.gerar_insights(resumo, provedor="openai")`, retornando texto com insights, o período e o resumo usado como contexto. |
 
 Essas rotas complementam as de despesas e IA, oferecendo visão agregada (resumo, por categoria, evolução) e uma camada de interpretação automática com IA.
@@ -954,10 +954,13 @@ Na pasta `backend`, com dependências já instaladas (`uv sync`):
 
 ```powershell
 cd backend
+uv sync
 uv run uvicorn app.api.main:app --reload
 ```
 
 Ao iniciar, o Uvicorn mostra no terminal a URL onde a API está disponível (por exemplo, `http://localhost:8000`) e a rota da documentação interativa (Swagger), normalmente em `/docs`.
+
+**Importante (.env):** o backend carrega variáveis tanto de `.env` quanto de `../.env`. A prática recomendada neste repositório é manter o `.env` na **raiz do projeto** (ao lado do `README.md`), e executar o backend dentro de `backend/`.
 
 **Backend (modo dev via script):**
 
@@ -967,6 +970,24 @@ Alternativa equivalente (usa `backend/scripts/dev.py`):
 cd backend
 uv run python scripts/dev.py
 ```
+
+**Frontend (Streamlit):**
+
+Em outro terminal, rode o frontend a partir da pasta `frontend/`:
+
+```powershell
+cd frontend
+uv sync
+uv run streamlit run streamlit_app.py
+```
+
+O Streamlit normalmente abre em `http://localhost:8501`.
+
+**Checklist rápido (opcional):**
+
+- **API online**: abrir `http://localhost:8000/health`
+- **Docs (Swagger)**: abrir `http://localhost:8000/docs` (se `DEBUG=true`)
+- **Frontend**: abrir `http://localhost:8501`
 
 **Testar provedores/estratégias de IA (script):**
 

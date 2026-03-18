@@ -127,13 +127,9 @@ class ApiClient:
         - receber uma extração estruturada (valor, categoria, data, descrição, etc.)
         - opcionalmente mandar o backend salvar a despesa no Supabase
 
-        Endpoint esperado no backend atual:
-        - POST `/ia/extrair-despesa`
-
-        Observação:
-        - Este método hoje chama `POST /ia/extrair`.
-          Se o seu backend estiver usando `/ia/extrair-despesa`, ajuste o path
-          (ou ajuste o backend) para manter consistência.
+        Endpoint esperado (backend atual):
+        - POST `/api/ia/extrair-despesa` (no servidor)
+          Como `base_url` costuma já conter `/api`, aqui chamamos `/ia/extrair-despesa`.
 
         Args:
             texto: texto em linguagem natural descrevendo a despesa.
@@ -147,14 +143,13 @@ class ApiClient:
 
         try:
             response = requests.post(
-                f"{self.base_url}/ia/extrair",
+                f"{self.base_url}/ia/extrair-despesa",
                 json={
                     "texto": texto,
                     "provedor": provedor,
                     "estrategia": estrategia,
-                    # IMPORTANTE: no backend atual o campo se chama "Salvar" (S maiúsculo).
-                    # Aqui está como "salvar". Se houver divergência, o backend pode ignorar.
-                    "salvar": salvar,
+                    # IMPORTANTE: o modelo do backend define o campo como `Salvar` (S maiúsculo).
+                    "Salvar": salvar,
                 },
                 headers=self._headers()
             )

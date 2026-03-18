@@ -8,7 +8,6 @@ a aplicação (rotas, serviços, clientes de IA e Supabase).
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -62,6 +61,20 @@ class Settings(BaseSettings):
         description="Modelo Gemini usado nas chamadas (ex.: gemini-pro, gemini-1.5-flash).",
     )
 
+    # --- Anthropic Claude (chave opcional se não usar Claude) ---
+    ANTHROPIC_API_KEY: str | None = Field(
+        default=None,
+        env="ANTHROPIC_API_KEY",
+        description=(
+            "Chave da API Anthropic (Claude); obrigatória apenas se usar o provider claude."
+        ),
+    )
+    ANTHROPIC_MODEL: str = Field(
+        default="claude-3-5-sonnet-20240620",
+        env="ANTHROPIC_MODEL",
+        description="Modelo Claude usado nas chamadas (ex.: claude-3-5-sonnet-20240620).",
+    )
+
     # --- Ollama (modelos locais) ---
     OLLAMA_BASE_URL: str = Field(
         default="http://localhost:11434",
@@ -110,9 +123,14 @@ class Settings(BaseSettings):
         Configuração do carregamento de variáveis pelo pydantic-settings.
         """
 
-        # Arquivo de onde as variáveis são lidas (além do ambiente).
-        # O caminho é relativo ao diretório de trabalho ao subir a aplicação.
-        env_file = ".env"
+        # Arquivo(s) de onde as variáveis são lidas (além do ambiente).
+        #
+        # Importante: no seu projeto o `.env` normalmente fica na RAIZ do repositório,
+        # mas o backend costuma ser executado com cwd = `backend/` (ex.: `cd backend`).
+        # Para funcionar em ambos os cenários, tentamos:
+        # - `.env` (quando o cwd é a raiz, ou quando você mantém um .env dentro de backend/)
+        # - `../.env` (quando o cwd é `backend/` e o `.env` está na raiz)
+        env_file = (".env", "../.env")
 
         # Nomes das variáveis de ambiente são case-sensitive (SUPABASE_URL ≠ supabase_url).
         case_sensitive = True

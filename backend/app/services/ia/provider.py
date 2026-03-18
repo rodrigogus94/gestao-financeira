@@ -54,7 +54,10 @@ class IAProvider(ABC):
         """
         self.tipo = tipo
         self.config = get_config(tipo)
-        self.nome = self.config.nome
+        # ProviderConfig expõe o campo `name` (nome legível) e `tipo` (identificador).
+        # O código anterior usava `config.nome`, o que causava AttributeError e
+        # deixava todos os provedores como indisponíveis no endpoint de status.
+        self.nome = self.config.name
         self.cliente = ClienteFactory.criar_cliente(tipo)
         logger.info(f"Provider de IA inicializado: {self.nome}")
 
