@@ -36,7 +36,8 @@ backend/
 │   └── __init__.py (opcional)
 └── scripts/
     ├── setup-supabase.sql        # Script SQL para criar tabelas/políticas no Supabase
-    └── dev.py                    # Script: roda o backend em modo dev (hot reload)
+    ├── dev.py                    # Script: roda o backend em modo dev (hot reload)
+    └── test_ias.py               # Script: testa provedores/estratégias de IA e salva JSON
 
 tests/
 ├── conftest.py                   # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
@@ -965,6 +966,16 @@ Alternativa equivalente (usa `backend/scripts/dev.py`):
 ```powershell
 cd backend
 uv run python scripts/dev.py
+```
+
+**Testar provedores/estratégias de IA (script):**
+
+Roda um teste rápido dos provedores configurados e das estratégias do `IAManager`.
+Gera um arquivo `Teste_IAS_Resultados.json` com os resultados.
+
+```powershell
+cd backend
+uv run python scripts/test_ias.py
 ```
 
 **Dependências:** na pasta `backend`, use `uv sync` para instalar/atualizar o ambiente conforme o `pyproject.toml`. Para incluir dependências de desenvolvimento (pytest, ruff, etc.): `uv sync` já as inclui pelo grupo `dev` definido no projeto.
