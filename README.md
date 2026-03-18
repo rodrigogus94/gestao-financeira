@@ -35,7 +35,8 @@ backend/
 │   │       └── relatorios.py     # Rotas de relatórios (/relatorios): mensal, categoria, evolução, insights
 │   └── __init__.py (opcional)
 └── scripts/
-    └── setup-supabase.sql        # Script SQL para criar tabelas/políticas no Supabase
+    ├── setup-supabase.sql        # Script SQL para criar tabelas/políticas no Supabase
+    └── dev.py                    # Script: roda o backend em modo dev (hot reload)
 
 tests/
 ├── conftest.py                   # Env de teste (SUPABASE_*), fixtures (extracao_exemplo, texto_despesa)
@@ -956,5 +957,14 @@ uv run uvicorn app.api.main:app --reload
 ```
 
 Ao iniciar, o Uvicorn mostra no terminal a URL onde a API está disponível (por exemplo, `http://localhost:8000`) e a rota da documentação interativa (Swagger), normalmente em `/docs`.
+
+**Backend (modo dev via script):**
+
+Alternativa equivalente (usa `backend/scripts/dev.py`):
+
+```powershell
+cd backend
+uv run python scripts/dev.py
+```
 
 **Dependências:** na pasta `backend`, use `uv sync` para instalar/atualizar o ambiente conforme o `pyproject.toml`. Para incluir dependências de desenvolvimento (pytest, ruff, etc.): `uv sync` já as inclui pelo grupo `dev` definido no projeto.
