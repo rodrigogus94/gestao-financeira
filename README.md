@@ -464,6 +464,22 @@ A seguir, um guia curto do que cada variável representa (com foco em estudo e o
 - **OLLAMA_BASE_URL**: URL do servidor do Ollama rodando localmente (por padrão, `http://localhost:11434`).
 - **OLLAMA_MODEL**: nome do modelo local no Ollama (ex.: `llama3.2`). Escolha um modelo que exista na sua instalação.
 
+**Como iniciar o Ollama (rápido):**
+- Inicie o servidor do Ollama:
+  - Windows/Linux/macOS: `ollama serve`
+- Baixe o modelo (se ainda não tiver):
+  - `ollama pull <SEU_MODELO>`
+- Verifique se o modelo existe (opções):
+  - Windows (PowerShell): `Invoke-RestMethod http://localhost:11434/api/tags`
+  - Linux/macOS: `curl http://localhost:11434/api/tags`
+
+#### Troubleshooting: provedores como `indisponivel`
+Se no endpoint `GET /api/ia/provedores` um provider aparecer com `status: "indisponivel"`, normalmente é um destes casos:
+- Chave de API nao definida no `.env` (por exemplo `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
+- Modelo do Ollama inexistente (verifique `OLLAMA_MODEL` e rode `ollama pull <SEU_MODELO>`).
+- Servico do provider nao esta acessivel (por exemplo `OLLAMA_BASE_URL` aponta para a porta errada).
+- Cache de instancias carregou chaves antigas: depois de alterar variaveis no `.env`, execute `POST /api/ia/recarregar` (ou reinicie o backend).
+
 #### Seleção de provider de IA
 
 - **DEFAULT_IA_PROVIDER**: provider principal (ex.: `openai`, `gemini`, `ollama`).
@@ -585,7 +601,7 @@ Uma única classe **IAProvider** (concreta) parametrizada pelo tipo (`openai`, `
 **IAProviderFactory** mantém uma instância de IAProvider por tipo (singleton):
 
 - **get_provider(tipo)**: retorna o provedor do tipo pedido (ou DEFAULT_IA_PROVIDER se tipo for inválido); em erro tenta o provedor padrão.
-- **listar_provedores_disponiveis()**: retorna lista com nome, tipo e status (disponivel/indisponivel) para cada provedor configurado.
+- **listar_provedores_disponiveis()**: retorna lista com nome, tipo e status (disponivel/indisponivel) para cada provedor configurado, refletindo o erro real de inicialização (sem "fallback" silencioso para outro provider).
 
 ### Passo 4.6 — manager.py
 

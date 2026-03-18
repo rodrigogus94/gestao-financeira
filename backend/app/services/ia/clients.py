@@ -49,14 +49,14 @@ class ClienteFactory:
             ValueError: Se o tipo não for um dos suportados.
         """
         if tipo == "openai":
-            return openai.AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY,
-                model=settings.OPENAI_MODEL,
-            )
+            # O modelo é definido nas chamadas (ex.: chat.completions.create),
+            # então não passa `model` no construtor (evita erro de assinatura).
+            return openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
         elif tipo == "gemini":
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            return genai.GenerativeModel(model=settings.GEMINI_MODEL)
+            # A assinatura do SDK usa `model_name` (não `model`).
+            return genai.GenerativeModel(model_name=settings.GEMINI_MODEL)
 
         elif tipo == "ollama":
             # Ollama não tem cliente SDK único; retornamos config para usar em chamar_ollama

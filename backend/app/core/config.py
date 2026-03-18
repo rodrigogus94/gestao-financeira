@@ -75,6 +75,21 @@ class Settings(BaseSettings):
         description="Modelo Claude usado nas chamadas (ex.: claude-3-5-sonnet-20240620).",
     )
 
+    # --- Alias compatibilidade (código usa CLAUDE_* em alguns pontos) ---
+    # Alguns módulos do projeto referenciam `settings.CLAUDE_API_KEY` e
+    # `settings.CLAUDE_MODEL`. O repositório já usa ANTHROPIC_* no .env,
+    # então aqui criamos esses campos como aliases.
+    CLAUDE_API_KEY: str | None = Field(
+        default=None,
+        env="ANTHROPIC_API_KEY",
+        description="Alias para ANTHROPIC_API_KEY (usado pelo código em CLAUDE_API_KEY).",
+    )
+    CLAUDE_MODEL: str = Field(
+        default="claude-3-5-sonnet-20240620",
+        env="ANTHROPIC_MODEL",
+        description="Alias para ANTHROPIC_MODEL (usado pelo código em CLAUDE_MODEL).",
+    )
+
     # --- Ollama (modelos locais) ---
     OLLAMA_BASE_URL: str = Field(
         default="http://localhost:11434",
